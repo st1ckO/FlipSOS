@@ -238,17 +238,3 @@ class Grid:
                 validMoves.append(cell)
                 
         return validMoves
-    
-    def calculateScore(self, grid):
-        # Calculate the score of each player
-        sScore = 0
-        oScore = 0
-        
-        for row in grid:
-            for cell in row:
-                if cell == 'S':
-                    sScore += 1
-                elif cell == 'O':
-                    oScore += 1
-        
-        return sScore, oScore

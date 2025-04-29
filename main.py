@@ -1,6 +1,13 @@
 import pygame
 from grid import Grid
 
+# TODO:
+# HIGH PRIO: AI player logic (Fixed-Depth Heuristic Search)
+# Fix state text (sequence, timer, etc.)
+# Fix game over logic (stop updating state text, add play again button, etc.)
+# Clean up code (add comments, remove complicated methods in infinite loops if possible, arrange methods logically, etc.)
+# LOW PRIO: token selection (S or O), AI difficulty, animations, sounds, etc.
+
 # Handles the Main game loop and grid logic
 class FlipSOS:
     def __init__(self):
@@ -20,10 +27,10 @@ class FlipSOS:
         
         self.validMoves = self.grid.findValidMoves(self.grid.gridLogic, self.currentPlayer)
         self.lastMove = None
-        self.gameOver = True
+        self.gameOver = False
         
         self.stateText = [f"PLAYER {self.currentPlayer}", "TURN"]
-        self.sScore, self.oScore = self.grid.calculateScore(self.grid.gridLogic)
+        self.sScore, self.oScore = self.calculateScore(self.grid.gridLogic)
         
         self.running = True
         
@@ -61,7 +68,8 @@ class FlipSOS:
                         for tile in swappableTiles:
                             self.grid.addToken(self.grid.gridLogic, self.currentPlayer, tile[0], tile[1])
                             
-                        self.sScore, self.oScore = self.grid.calculateScore(self.grid.gridLogic)
+                        self.sScore, self.oScore = self.calculateScore(self.grid.gridLogic)
+                        
                         self.currentPlayer = self.playerO if self.currentPlayer == self.playerS else self.playerS # Switch player
                         self.stateText = [f"PLAYER {self.currentPlayer}", "TURN"]
                         self.validMoves = self.grid.findValidMoves(self.grid.gridLogic, self.currentPlayer)
@@ -76,7 +84,16 @@ class FlipSOS:
                             
                             # Both players skipped
                             if self.validMoves == []:
-                                self.stateText = ["BOTH SKIPPED", "GAME OVER"]       
+                                self.stateText = ["BOTH SKIPPED", "GAME OVER"]    
+                                self.gameOver = True   
+                    
+                        if self.gameOver:
+                            if self.sScore > self.oScore:
+                                self.stateText = ["PLAYER S WINS", "GAME OVER"]
+                            elif self.oScore > self.sScore:
+                                self.stateText = ["PLAYER O WINS", "GAME OVER"]
+                            else:
+                                self.stateText = ["DRAW", "GAME OVER"]
                 
     def update(self):
         pass
@@ -86,6 +103,23 @@ class FlipSOS:
         self.grid.drawGrid(self.screen)
         self.grid.draw_sidebar(self.screen, self.sScore, self.oScore, self.stateText)
         pygame.display.update()
+        
+    def calculateScore(self, grid):
+        # Calculate the score of each player
+        sScore = 0
+        oScore = 0
+        
+        for row in grid:
+            for cell in row:
+                if cell == 'S':
+                    sScore += 1
+                elif cell == 'O':
+                    oScore += 1
+                    
+        if sScore + oScore == self.rows * self.columns:
+            self.gameOver = True
+        
+        return sScore, oScore
 
 if __name__ == '__main__':
     game = FlipSOS()
