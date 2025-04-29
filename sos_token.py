@@ -1,5 +1,3 @@
-import pygame
-
 class Token:
     def __init__(self, player, gridX, gridY, tokenSize, image, gameClass):
         self.player = player

@@ -45,6 +45,9 @@ class Grid:
         self.bgDict = self.loadBackgroundImages()
         self.bg = self.createBackground()
         self.gridLogic = self.regenGrid(self.y, self.x)
+        self.sidebar = loadImage('assets/Sidebar.png', (360, 720))
+        self.scoreFont = pygame.font.Font('C:\Windows\Fonts\Arial.ttf', 60)
+        self.stateFont = pygame.font.Font('C:\Windows\Fonts\Arial.ttf', 28)
         
     def loadBackgroundImages(self):
         # Load background images for the grid 
@@ -118,9 +121,35 @@ class Grid:
         # Draw red circle on last clicked cell
         if self.gameClass.lastMove:
             y, x = self.gameClass.lastMove
-            center_x = x * self.tokenSize[0] + self.tokenSize[0] + self.tokenSize[0] // 2
-            center_y = y * self.tokenSize[1] + self.tokenSize[1] + self.tokenSize[1] // 2
-            pygame.draw.circle(displayWindow, (255, 0, 0), (center_x, center_y), 6)  
+            centerX = x * self.tokenSize[0] + self.tokenSize[0] + self.tokenSize[0] // 2
+            centerY = y * self.tokenSize[1] + self.tokenSize[1] + self.tokenSize[1] // 2
+            pygame.draw.circle(displayWindow, (255, 0, 0), (centerX, centerY), 6)  
+            
+    def draw_sidebar(self, displayWindow, sScore, oScore, stateText):
+        displayWindow.blit(self.sidebar, (720, 0)) # Blit the sidebar to the right
+        
+        # Draw overlay text
+        sScoreText = self.scoreFont.render(f"{sScore}", True, (0, 0, 0))
+        oScoreText = self.scoreFont.render(f"{oScore}", True, (0, 0, 0))
+        displayWindow.blit(sScoreText, (900, 373))
+        displayWindow.blit(oScoreText, (900, 484))
+        
+        # Assuming state_text is a list of strings
+        line_surfaces = [self.stateFont.render(line, True, (0, 0, 0)) for line in stateText]
+
+        # Background box properties
+        box_x, box_y = 767, 582
+        box_width, box_height = 267, 121
+
+        # Calculate total height of all lines
+        total_height = sum(surf.get_height() for surf in line_surfaces)
+        start_y = box_y + (box_height - total_height) // 2
+
+        # Draw each line centered within the box
+        for surf in line_surfaces:
+            x = box_x + (box_width - surf.get_width()) // 2
+            displayWindow.blit(surf, (x, start_y))
+            start_y += surf.get_height()
     
     def printBoard(self):
         # Prints the grid to the console for debugging
@@ -209,3 +238,17 @@ class Grid:
                 validMoves.append(cell)
                 
         return validMoves
+    
+    def calculateScore(self, grid):
+        # Calculate the score of each player
+        sScore = 0
+        oScore = 0
+        
+        for row in grid:
+            for cell in row:
+                if cell == 'S':
+                    sScore += 1
+                elif cell == 'O':
+                    oScore += 1
+        
+        return sScore, oScore
