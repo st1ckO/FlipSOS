@@ -44,6 +44,7 @@ class FlipSOS:
         self.tokenSize = (72, 72)
         self.grid = Grid(self.rows, self.columns, self.tokenSize, self)
         self.validMoves = self.grid.findValidMoves(self.grid.gridLogic, self.currentPlayer) # TODO: Move later
+        self.lastMove = None
         
         self.running = True
         
@@ -70,20 +71,32 @@ class FlipSOS:
                     x, y = pygame.mouse.get_pos()
                     x, y = (x - self.tokenSize[0]) // self.tokenSize[0], (y - self.tokenSize[1]) // self.tokenSize[1]
                     
-                    ### TODO: Move mamaya sa update? bast wag sa drawGrid since continuous pag update
-                    self.validMoves = self.grid.findValidMoves(self.grid.gridLogic, self.currentPlayer)
-                    print(self.validMoves)
-                    ###
-                    
                     if (y, x) not in self.validMoves:
                         pass # TODO: Add feedback for invalid click
                     else:
-                        self.grid.addToken(self.grid.gridLogic, self.currentPlayer, y, x)
-                        for tile in self.validMoves[(y, x)]:
-                            tileY, tileX = tile
-                            self.grid.addToken(self.grid.gridLogic, self.currentPlayer, tileY, tileX)
-                        self.currentPlayer = self.playerO if self.currentPlayer == self.playerS else self.playerS
+                        self.grid.addToken(self.grid.gridLogic, self.currentPlayer, y, x) # Add the token to the grid logic
+                        self.lastMove = (y, x) # Save the last move for drawing the red circle
+                        swappableTiles = self.grid.findSwappableTiles(y, x, self.grid.gridLogic, self.currentPlayer) 
+                        
+                        # Flip all the tokens in the direction of the move
+                        for tile in swappableTiles:
+                            self.grid.addToken(self.grid.gridLogic, self.currentPlayer, tile[0], tile[1])
+                        
+                        self.currentPlayer = self.playerO if self.currentPlayer == self.playerS else self.playerS # Switch player
                         self.validMoves = self.grid.findValidMoves(self.grid.gridLogic, self.currentPlayer) # TODO: Move later
+                        print(self.validMoves)
+                        
+                        # Handle Skips
+                        if self.validMoves == []:
+                            self.currentPlayer = self.playerO if self.currentPlayer == self.playerS else self.playerS
+                            self.validMoves = self.grid.findValidMoves(self.grid.gridLogic, self.currentPlayer)
+                            
+                            # Both players skipped
+                            if self.validMoves == []:
+                                print('Game Over')
+                                self.running = False
+                            
+                        
                 
     def update(self):
         pass
@@ -176,8 +189,15 @@ class Grid:
         for token in self.tokens.values():
             token.draw(displayWindow)
 
-        for move in self.gameClass.validMoves.keys():
+        for move in self.gameClass.validMoves:
             displayWindow.blit(self.validToken, (move[1] * self.tokenSize[0] + self.tokenSize[0] + 2, move[0] * self.tokenSize[1] + self.tokenSize[1] + 2))
+        
+        # Draw red circle on last clicked cell
+        if self.gameClass.lastMove:
+            y, x = self.gameClass.lastMove
+            center_x = x * self.tokenSize[0] + self.tokenSize[0] + self.tokenSize[0] // 2
+            center_y = y * self.tokenSize[1] + self.tokenSize[1] + self.tokenSize[1] // 2
+            pygame.draw.circle(displayWindow, (255, 0, 0), (center_x, center_y), 6)  
     
     def printBoard(self):
         # Prints the grid to the console for debugging
@@ -255,7 +275,7 @@ class Grid:
     def findValidMoves(self, grid, player):
         # Valid move is a cell that is empty and has at least one opponent token adjacent to it, and has at least one swappable tile in the direction of the move
         clickableCells = self.findClickableCells(grid, player)
-        validMoves = {}
+        validMoves = []
         
         for cell in clickableCells:
             x, y = cell
@@ -263,7 +283,7 @@ class Grid:
             swappableTiles = self.findSwappableTiles(x, y, grid, player)
             
             if len(swappableTiles) > 0:
-                validMoves[cell] = swappableTiles
+                validMoves.append(cell)
                 
         return validMoves
             
