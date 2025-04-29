@@ -76,9 +76,12 @@ class FlipSOS:
                     ###
                     
                     if (y, x) not in self.validMoves:
-                        pass
+                        pass # TODO: Add feedback for invalid click
                     else:
                         self.grid.addToken(self.grid.gridLogic, self.currentPlayer, y, x)
+                        for tile in self.validMoves[(y, x)]:
+                            tileY, tileX = tile
+                            self.grid.addToken(self.grid.gridLogic, self.currentPlayer, tileY, tileX)
                         self.currentPlayer = self.playerO if self.currentPlayer == self.playerS else self.playerS
                         self.validMoves = self.grid.findValidMoves(self.grid.gridLogic, self.currentPlayer) # TODO: Move later
                 
@@ -173,7 +176,7 @@ class Grid:
         for token in self.tokens.values():
             token.draw(displayWindow)
 
-        for move in self.gameClass.validMoves:
+        for move in self.gameClass.validMoves.keys():
             displayWindow.blit(self.validToken, (move[1] * self.tokenSize[0] + self.tokenSize[0] + 2, move[0] * self.tokenSize[1] + self.tokenSize[1] + 2))
     
     def printBoard(self):
@@ -252,7 +255,7 @@ class Grid:
     def findValidMoves(self, grid, player):
         # Valid move is a cell that is empty and has at least one opponent token adjacent to it, and has at least one swappable tile in the direction of the move
         clickableCells = self.findClickableCells(grid, player)
-        validMoves = []
+        validMoves = {}
         
         for cell in clickableCells:
             x, y = cell
@@ -260,7 +263,7 @@ class Grid:
             swappableTiles = self.findSwappableTiles(x, y, grid, player)
             
             if len(swappableTiles) > 0:
-                validMoves.append(cell)
+                validMoves[cell] = swappableTiles
                 
         return validMoves
             
