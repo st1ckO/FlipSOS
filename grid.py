@@ -46,8 +46,8 @@ class Grid:
         self.bg = self.createBackground()
         self.gridLogic = self.regenGrid(self.y, self.x)
         self.sidebar = loadImage('assets/Sidebar.png', (360, 720))
-        self.scoreFont = pygame.font.Font('C:\Windows\Fonts\Arial.ttf', 60)
-        self.stateFont = pygame.font.Font('C:\Windows\Fonts\Arial.ttf', 28)
+        self.scoreFont = pygame.font.Font('assets/arial.ttf', 60)
+        self.stateFont = pygame.font.Font('assets/arial.ttf', 28)
         
     def loadBackgroundImages(self):
         # Load background images for the grid 
