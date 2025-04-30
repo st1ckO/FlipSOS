@@ -60,7 +60,6 @@ class FlipSOS:
                     if (y, x) not in self.validMoves:
                         self.stateText = ["INVALID MOVE"]
                     else:
-                        self.grid.addToken(self.grid.gridLogic, self.currentPlayer, y, x) # Add the token to the grid logic
                         self.lastMove = (y, x) # Save the last move for drawing the red circle
                         swappableTiles = self.grid.findSwappableTiles(y, x, self.grid.gridLogic, self.currentPlayer) 
                         
@@ -73,7 +72,6 @@ class FlipSOS:
                         self.currentPlayer = self.playerO if self.currentPlayer == self.playerS else self.playerS # Switch player
                         self.stateText = [f"PLAYER {self.currentPlayer}", "TURN"]
                         self.validMoves = self.grid.findValidMoves(self.grid.gridLogic, self.currentPlayer)
-                        print(self.validMoves)
                         
                         # Handle Skips
                         if self.validMoves == []:

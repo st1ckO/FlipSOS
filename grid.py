@@ -220,8 +220,12 @@ class Grid:
                     break
                 
             if len(currentLine) > 0:
-                    swappableTiles.extend(currentLine)
+                swappableTiles.extend(currentLine)
                     
+        if len(swappableTiles) > 0:
+            swappableTiles.append((x, y))
+            print(f"Swappable Tiles: {swappableTiles}")
+            
         return swappableTiles
                 
     def findValidMoves(self, grid, player):
