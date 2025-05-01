@@ -38,16 +38,28 @@ class Grid:
         self.tokenSize = tokenSize
         self.resizedToken = (tokenSize[0] - 2, tokenSize[1] - 2)
         self.validTokenSize = (tokenSize[0] - 5, tokenSize[1] - 5)
+        self.tokens = {}
+        self.playerO = 'O'
+        self.playerS = 'S'
+        self.currentPlayer = 'S'
+        
         self.sToken = load_image('assets/S.png', self.resizedToken)
         self.oToken = load_image('assets/O.png', self.resizedToken)
         self.validToken = load_image('assets/Valid_Moves.png', self.validTokenSize)
-        self.tokens = {}
-        self.bgDict = self.load_background_images()
-        self.bg = self.create_background()
-        self.gridLogic = self.regen_grid(self.y, self.x)
         self.sidebar = load_image('assets/Sidebar.png', (360, 720))
         self.scoreFont = pygame.font.Font('assets/arial.ttf', 60)
         self.stateFont = pygame.font.Font('assets/arial.ttf', 28)
+        
+        self.bgDict = self.load_background_images()
+        self.bg = self.create_background()
+        self.gridLogic = self.regen_grid(self.y, self.x)
+        
+        self.stateText = [f"PLAYER {self.currentPlayer}", "TURN"]
+        self.sScore, self.oScore = self.calculate_score(self.gridLogic)
+        self.validMoves = self.find_valid_moves(self.gridLogic, self.currentPlayer)
+        self.lastMove = None
+        self.bothSkipped = False
+        self.gameOver = 0 # 0 = Continue, 1 = S wins, 2 = O wins, 3 = Draw
         
     def load_background_images(self):
         # Load background images for the grid 
@@ -115,27 +127,27 @@ class Grid:
         for token in self.tokens.values():
             token.draw(displayWindow)
 
-        for move in self.gameClass.validMoves:
+        for move in self.validMoves:
             displayWindow.blit(self.validToken, (move[1] * self.tokenSize[0] + self.tokenSize[0] + 2, move[0] * self.tokenSize[1] + self.tokenSize[1] + 2))
         
         # Draw red circle on last clicked cell
-        if self.gameClass.lastMove:
-            y, x = self.gameClass.lastMove
+        if self.lastMove:
+            y, x = self.lastMove
             centerX = x * self.tokenSize[0] + self.tokenSize[0] + self.tokenSize[0] // 2
             centerY = y * self.tokenSize[1] + self.tokenSize[1] + self.tokenSize[1] // 2
             pygame.draw.circle(displayWindow, (255, 0, 0), (centerX, centerY), 6)  
             
-    def draw_sidebar(self, displayWindow, sScore, oScore, stateText):
+    def draw_sidebar(self, displayWindow):
         displayWindow.blit(self.sidebar, (720, 0)) # Blit the sidebar to the right
         
         # Draw overlay text
-        sScoreText = self.scoreFont.render(f"{sScore}", True, (0, 0, 0))
-        oScoreText = self.scoreFont.render(f"{oScore}", True, (0, 0, 0))
+        sScoreText = self.scoreFont.render(f"{self.sScore}", True, (0, 0, 0))
+        oScoreText = self.scoreFont.render(f"{self.oScore}", True, (0, 0, 0))
         displayWindow.blit(sScoreText, (900, 373))
         displayWindow.blit(oScoreText, (900, 484))
         
         # Assuming stateText is a list of strings
-        lineSurfaces = [self.stateFont.render(line, True, (0, 0, 0)) for line in stateText]
+        lineSurfaces = [self.stateFont.render(line, True, (0, 0, 0)) for line in self.stateText]
 
         # Background box properties
         boxX, boxY = 767, 582
@@ -241,3 +253,72 @@ class Grid:
                 validMoves.append(cell)
                 
         return validMoves
+    
+    def flip_tiles(self, y, x):
+        # Flip all the tokens in the direction of the move
+        swappableTiles = self.find_swappable_tiles(y, x, self.gridLogic, self.currentPlayer)
+        
+        for tile in swappableTiles:
+            self.add_token(self.gridLogic, self.currentPlayer, tile[0], tile[1])
+            
+        self.add_token(self.gridLogic, self.currentPlayer, y, x)
+    
+    def calculate_score(self, grid):
+        # Calculate the score of each player
+        sScore = 0
+        oScore = 0
+        
+        for row in grid:
+            for cell in row:
+                if cell == 'S':
+                    sScore += 1
+                elif cell == 'O':
+                    oScore += 1
+            
+        return sScore, oScore
+    
+    def update_score(self):
+        self.sScore, self.oScore = self.calculate_score(self.gridLogic)
+    
+    def find_patterns():
+        pass
+    
+    def switch_player(self):
+        self.currentPlayer = self.playerO if self.currentPlayer == self.playerS else self.playerS
+        self.validMoves = self.find_valid_moves(self.gridLogic, self.currentPlayer)
+        
+        # Handle Skips
+        if self.validMoves == []:
+            self.stateText = [f"NO VALID MOVE", "TURN SKIPPED"]
+            self.currentPlayer = self.playerO if self.currentPlayer == self.playerS else self.playerS
+            self.validMoves = self.find_valid_moves(self.gridLogic, self.currentPlayer)
+            
+            # Both players skipped
+            if self.validMoves == []:
+                self.stateText = ["BOTH SKIPPED", "GAME OVER"]    
+                self.bothSkipped = True 
+            else:
+                self.stateText = [f"PLAYER {self.currentPlayer}", "TURN"]
+        else:
+            self.stateText = [f"PLAYER {self.currentPlayer}", "TURN"]
+        
+    def check_game_over(self):
+        if self.bothSkipped or self.sScore + self.oScore == self.x * self.y:
+            self.gameOver = self.check_winner(self.sScore, self.oScore)
+            self.display_game_over()
+
+    def check_winner(self, sScore, oScore):
+        if sScore > oScore:
+            return 1
+        elif oScore > sScore:       
+            return 2
+        else:         
+            return 3
+    
+    def display_game_over(self):
+        if self.gameOver == 1:
+            self.stateText = ["PLAYER S WINS", "GAME OVER"]
+        elif self.gameOver == 2:
+            self.stateText = ["PLAYER O WINS", "GAME OVER"]
+        else:
+            self.stateText = ["DRAW", "GAME OVER"]

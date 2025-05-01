@@ -16,21 +16,10 @@ class FlipSOS:
         self.screen = pygame.display.set_mode(self.resolution)
         pygame.display.set_caption('FlipSOS')
         
-        self.playerO = 'O'
-        self.playerS = 'S'
-        self.currentPlayer = 'S'
-        
         self.rows = 8
         self.columns = 8
         self.tokenSize = (72, 72)
         self.grid = Grid(self.rows, self.columns, self.tokenSize, self)
-        
-        self.validMoves = self.grid.find_valid_moves(self.grid.gridLogic, self.currentPlayer)
-        self.lastMove = None
-        self.gameOver = False
-        
-        self.stateText = [f"PLAYER {self.currentPlayer}", "TURN"]
-        self.sScore, self.oScore = self.calculate_score(self.grid.gridLogic)
         
         self.running = True
         
@@ -57,41 +46,14 @@ class FlipSOS:
                     x, y = pygame.mouse.get_pos()
                     x, y = (x - self.tokenSize[0]) // self.tokenSize[0], (y - self.tokenSize[1]) // self.tokenSize[1]
                     
-                    if (y, x) not in self.validMoves:
-                        self.stateText = ["INVALID MOVE"]
+                    if (y, x) not in self.grid.validMoves:
+                        self.grid.stateText = ["INVALID MOVE"]
                     else:
-                        self.lastMove = (y, x) # Save the last move for drawing the red circle
-                        swappableTiles = self.grid.find_swappable_tiles(y, x, self.grid.gridLogic, self.currentPlayer) 
-                        
-                        # Flip all the tokens in the direction of the move
-                        for tile in swappableTiles:
-                            self.grid.add_token(self.grid.gridLogic, self.currentPlayer, tile[0], tile[1])
-                            
-                        self.sScore, self.oScore = self.calculate_score(self.grid.gridLogic)
-                        
-                        self.currentPlayer = self.playerO if self.currentPlayer == self.playerS else self.playerS # Switch player
-                        self.stateText = [f"PLAYER {self.currentPlayer}", "TURN"]
-                        self.validMoves = self.grid.find_valid_moves(self.grid.gridLogic, self.currentPlayer)
-                        
-                        # Handle Skips
-                        if self.validMoves == []:
-                            self.stateText = [f"NO VALID MOVE", "TURN SKIPPED"]
-                            self.currentPlayer = self.playerO if self.currentPlayer == self.playerS else self.playerS
-                            self.stateText = [f"PLAYER {self.currentPlayer}", "TURN"]
-                            self.validMoves = self.grid.find_valid_moves(self.grid.gridLogic, self.currentPlayer)
-                            
-                            # Both players skipped
-                            if self.validMoves == []:
-                                self.stateText = ["BOTH SKIPPED", "GAME OVER"]    
-                                self.gameOver = True   
-                    
-                        if self.gameOver:
-                            if self.sScore > self.oScore:
-                                self.stateText = ["PLAYER S WINS", "GAME OVER"]
-                            elif self.oScore > self.sScore:
-                                self.stateText = ["PLAYER O WINS", "GAME OVER"]
-                            else:
-                                self.stateText = ["DRAW", "GAME OVER"]
+                        self.grid.lastMove = (y, x) # Save the last move for drawing the red circle
+                        self.grid.flip_tiles(y, x) 
+                        self.grid.update_score()
+                        self.grid.switch_player()
+                        self.grid.check_game_over()
                 
     def update(self):
         pass
@@ -99,28 +61,8 @@ class FlipSOS:
     def draw(self):
         self.screen.fill((255, 255, 255)) # RRGGBB Format
         self.grid.draw_grid(self.screen)
-        self.grid.draw_sidebar(self.screen, self.sScore, self.oScore, self.stateText)
+        self.grid.draw_sidebar(self.screen)
         pygame.display.update()
-        
-    def calculate_score(self, grid):
-        # Calculate the score of each player
-        sScore = 0
-        oScore = 0
-        
-        for row in grid:
-            for cell in row:
-                if cell == 'S':
-                    sScore += 1
-                elif cell == 'O':
-                    oScore += 1
-                    
-        if sScore + oScore == self.rows * self.columns:
-            self.gameOver = True
-        
-        return sScore, oScore
-    
-    def find_patterns():
-        pass
 
 if __name__ == '__main__':
     game = FlipSOS()
