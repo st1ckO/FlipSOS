@@ -51,7 +51,6 @@ class FlipSOS:
                     else:
                         self.grid.lastMove = (y, x) # Save the last move for drawing the red circle
                         self.grid.flip_tiles(y, x) 
-                        self.grid.update_score()
                         self.grid.switch_player()
                         self.grid.check_game_over()
                 

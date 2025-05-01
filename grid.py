@@ -29,6 +29,10 @@ def find_valid_directions(x, y, minX=0, minY=0, maxX=7, maxY=7):
                 
     return validDirections
 
+def is_on_grid(x, y, minX=0, minY=0, maxX=7, maxY=7):
+    # Check if the coordinates are within the grid bounds
+    return minX <= x <= maxX and minY <= y <= maxY
+
 # Handles the grid design and logic       
 class Grid:
     def __init__(self, rows, columns, tokenSize, gameClass): 
@@ -47,7 +51,7 @@ class Grid:
         self.oToken = load_image('assets/O.png', self.resizedToken)
         self.validToken = load_image('assets/Valid_Moves.png', self.validTokenSize)
         self.sidebar = load_image('assets/Sidebar.png', (360, 720))
-        self.scoreFont = pygame.font.Font('assets/arial.ttf', 60)
+        self.scoreFont = pygame.font.Font('assets/arial.ttf', 50)
         self.stateFont = pygame.font.Font('assets/arial.ttf', 28)
         
         self.bgDict = self.load_background_images()
@@ -56,8 +60,10 @@ class Grid:
         
         self.stateText = [f"PLAYER {self.currentPlayer}", "TURN"]
         self.sScore, self.oScore = self.calculate_score(self.gridLogic)
+        self.sPatternScore, self.oPatternScore = 0, 0
         self.validMoves = self.find_valid_moves(self.gridLogic, self.currentPlayer)
         self.lastMove = None
+        self.pattern = []
         self.bothSkipped = False
         self.gameOver = 0 # 0 = Continue, 1 = S wins, 2 = O wins, 3 = Draw
         
@@ -133,18 +139,32 @@ class Grid:
         # Draw red circle on last clicked cell
         if self.lastMove:
             y, x = self.lastMove
-            centerX = x * self.tokenSize[0] + self.tokenSize[0] + self.tokenSize[0] // 2
-            centerY = y * self.tokenSize[1] + self.tokenSize[1] + self.tokenSize[1] // 2
-            pygame.draw.circle(displayWindow, (255, 0, 0), (centerX, centerY), 6)  
+            centerX = x * self.tokenSize[0] + (self.tokenSize[0] * 3) // 2
+            centerY = y * self.tokenSize[1] + (self.tokenSize[1] * 3) // 2
+            pygame.draw.circle(displayWindow, (255, 0, 0), (centerX, centerY), 5)  
+        
+        # Draw a line on each pattern formed
+        for pattern in self.pattern:
+            # Convert grid coordinates to pixel coordinates (center of each tile)
+            pixel_coords = [
+                (px * self.tokenSize[0] + (self.tokenSize[0] * 3) // 2, py * self.tokenSize[1] + (self.tokenSize[1] * 3) // 2)
+                for (py, px) in pattern
+            ]
+            
+            # Ensure line is drawn from one end to the other
+            pixel_coords.sort()
+            
+            # Draw line from first to last point in the pattern
+            pygame.draw.line(displayWindow, (255, 0, 0), pixel_coords[0], pixel_coords[-1], 1)
             
     def draw_sidebar(self, displayWindow):
         displayWindow.blit(self.sidebar, (720, 0)) # Blit the sidebar to the right
         
         # Draw overlay text
-        sScoreText = self.scoreFont.render(f"{self.sScore}", True, (0, 0, 0))
-        oScoreText = self.scoreFont.render(f"{self.oScore}", True, (0, 0, 0))
-        displayWindow.blit(sScoreText, (900, 373))
-        displayWindow.blit(oScoreText, (900, 484))
+        sScoreText = self.scoreFont.render(f"{self.sScore} + {self.sPatternScore}", True, (0, 0, 0))
+        oScoreText = self.scoreFont.render(f"{self.oScore} + {self.oPatternScore}", True, (0, 0, 0))
+        displayWindow.blit(sScoreText, (870, 379))
+        displayWindow.blit(oScoreText, (870, 490))
         
         # Assuming stateText is a list of strings
         lineSurfaces = [self.stateFont.render(line, True, (0, 0, 0)) for line in self.stateText]
@@ -254,14 +274,14 @@ class Grid:
                 
         return validMoves
     
-    def flip_tiles(self, y, x):
+    def flip_tiles(self, x, y):
         # Flip all the tokens in the direction of the move
-        swappableTiles = self.find_swappable_tiles(y, x, self.gridLogic, self.currentPlayer)
+        swappableTiles = self.find_swappable_tiles(x, y, self.gridLogic, self.currentPlayer)
         
         for tile in swappableTiles:
             self.add_token(self.gridLogic, self.currentPlayer, tile[0], tile[1])
             
-        self.add_token(self.gridLogic, self.currentPlayer, y, x)
+        self.update_score(swappableTiles)
     
     def calculate_score(self, grid):
         # Calculate the score of each player
@@ -277,11 +297,51 @@ class Grid:
             
         return sScore, oScore
     
-    def update_score(self):
+    def update_score(self, swappableTiles):
         self.sScore, self.oScore = self.calculate_score(self.gridLogic)
+        currentPattern = self.find_patterns(self.gridLogic, swappableTiles)
+        self.pattern = currentPattern
+        patternScore = len(currentPattern)
+        print(currentPattern)
+        
+        if self.currentPlayer == 'S':
+            self.sPatternScore += patternScore
+        else:
+            self.oPatternScore += patternScore
     
-    def find_patterns():
-        pass
+    def find_patterns(self, grid, swappableTiles):
+        directions = [
+            (0, 1),   # horizontal right
+            (1, 0),   # vertical down
+            (1, 1),   # diagonal down-right
+            (1, -1),  # diagonal down-left
+        ]
+        patterns = []
+        seenPatterns = set()
+        
+        for cx, cy in swappableTiles:
+            for dx, dy in directions:
+                # Check 3-cell patterns in each direction of the current cell
+                for offset in [-2, -1, 0]:
+                    coordinates = [
+                        (cx + dx * offset, cy + dy * offset),
+                        (cx + dx * (offset + 1), cy + dy * (offset + 1)),
+                        (cx + dx * (offset + 2), cy + dy * (offset + 2))
+                    ]
+                    
+                    # Validate bounds
+                    if not all(is_on_grid(cdx, cdy) for cdx, cdy in coordinates):
+                        continue
+                    
+                    # Get pattern string (SOS or OSO)
+                    pattern = [grid[cdx][cdy] for cdx, cdy in coordinates]
+                    if pattern == ['S', 'O', 'S'] or pattern == ['O', 'S', 'O']:
+                        key = frozenset(coordinates)  # Used frozenset to avoid duplicates
+                        if key not in seenPatterns:
+                            seenPatterns.add(key)
+                            patterns.append(coordinates)             
+        
+        return patterns  
     
     def switch_player(self):
         self.currentPlayer = self.playerO if self.currentPlayer == self.playerS else self.playerS
@@ -304,15 +364,15 @@ class Grid:
         
     def check_game_over(self):
         if self.bothSkipped or self.sScore + self.oScore == self.x * self.y:
-            self.gameOver = self.check_winner(self.sScore, self.oScore)
+            self.gameOver = self.check_winner(self.sScore, self.sPatternScore, self.oScore, self.oPatternScore)
             self.display_game_over()
 
-    def check_winner(self, sScore, oScore):
-        if sScore > oScore:
+    def check_winner(self, sScore, sPatternScore, oScore, oPatternScore):
+        if (sScore + sPatternScore) > (oScore + oPatternScore):
             return 1
-        elif oScore > sScore:       
+        elif (oScore + oPatternScore) > (sScore + sPatternScore):       
             return 2
-        else:         
+        elif (sScore + sPatternScore) == (oScore + oPatternScore):         
             return 3
     
     def display_game_over(self):
