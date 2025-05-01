@@ -2,19 +2,19 @@ import pygame
 from sos_token import Token
 
 # Utility functions
-def loadImage(path, size):
+def load_image(path, size):
     img = pygame.image.load(path).convert_alpha() # To make png transparent
     img = pygame.transform.scale(img, size)
     return img
 
-def extractSprite(sheet, x, y, scaleSize, size):
+def extract_sprite(sheet, x, y, scaleSize, size):
     # Extract a sprite from a sprite sheet
     sprite = pygame.Surface((size[0], size[1])).convert_alpha() # size parameter is the size of each sprite in the sheet
     sprite.blit(sheet, (0, 0), (x * size[0], y * size[1], size[0], size[1])) 
     sprite = pygame.transform.scale(sprite, scaleSize)
     return sprite
 
-def findValidDirections(x, y, minX=0, minY=0, maxX=7, maxY=7):
+def find_valid_directions(x, y, minX=0, minY=0, maxX=7, maxY=7):
     # Returns a list of valid directions to move in the grid (Basically, directions that doesn't get out of bounds)
     validDirections = []
     
@@ -38,18 +38,18 @@ class Grid:
         self.tokenSize = tokenSize
         self.resizedToken = (tokenSize[0] - 2, tokenSize[1] - 2)
         self.validTokenSize = (tokenSize[0] - 5, tokenSize[1] - 5)
-        self.sToken = loadImage('assets/S.png', self.resizedToken)
-        self.oToken = loadImage('assets/O.png', self.resizedToken)
-        self.validToken = loadImage('assets/Valid_Moves.png', self.validTokenSize)
+        self.sToken = load_image('assets/S.png', self.resizedToken)
+        self.oToken = load_image('assets/O.png', self.resizedToken)
+        self.validToken = load_image('assets/Valid_Moves.png', self.validTokenSize)
         self.tokens = {}
-        self.bgDict = self.loadBackgroundImages()
-        self.bg = self.createBackground()
-        self.gridLogic = self.regenGrid(self.y, self.x)
-        self.sidebar = loadImage('assets/Sidebar.png', (360, 720))
+        self.bgDict = self.load_background_images()
+        self.bg = self.create_background()
+        self.gridLogic = self.regen_grid(self.y, self.x)
+        self.sidebar = load_image('assets/Sidebar.png', (360, 720))
         self.scoreFont = pygame.font.Font('assets/arial.ttf', 60)
         self.stateFont = pygame.font.Font('assets/arial.ttf', 28)
         
-    def loadBackgroundImages(self):
+    def load_background_images(self):
         # Load background images for the grid 
         # Extracts the images from the sprite sheet and scales them to the token size
         imageDict = {}
@@ -59,11 +59,11 @@ class Grid:
         
         for y in range(3):
             for x in range(7):
-                imageDict[xAlpha[x] + str(y)] = extractSprite(spriteSheet, x, y, self.tokenSize, spriteActualSize)
+                imageDict[xAlpha[x] + str(y)] = extract_sprite(spriteSheet, x, y, self.tokenSize, spriteActualSize)
         
         return imageDict
     
-    def createBackground(self):
+    def create_background(self):
         # Create the background for the grid using the loaded images (specific for 8x8 grid)
         gridBg = [
             ['C0', 'D0', 'D0', 'D0', 'D0', 'D0', 'D0', 'D0', 'D0', 'E0'],
@@ -86,13 +86,13 @@ class Grid:
         
         return background
     
-    def addToken(self, grid, player, y, x):
+    def add_token(self, grid, player, y, x):
         # Adds a token to the grid and updates the grid logic
         tokenImage = self.oToken if player == 'O' else self.sToken
         self.tokens[(y, x)] = Token(player, y, x, self.tokenSize, tokenImage, self.gameClass)
         grid[y][x] = self.tokens[(y, x)].player
         
-    def regenGrid(self, rows, columns):
+    def regen_grid(self, rows, columns):
         # Generates empty grid for game logic
         grid = []
         for y in range(rows):
@@ -102,14 +102,14 @@ class Grid:
             grid.append(line)
             
         # Add starting tokens
-        self.addToken(grid, 'O', 3, 3)
-        self.addToken(grid, 'S', 3, 4)
-        self.addToken(grid, 'O', 4, 4)
-        self.addToken(grid, 'S', 4, 3)
+        self.add_token(grid, 'O', 3, 3)
+        self.add_token(grid, 'S', 3, 4)
+        self.add_token(grid, 'O', 4, 4)
+        self.add_token(grid, 'S', 4, 3)
 
         return grid
     
-    def drawGrid(self, displayWindow):
+    def draw_grid(self, displayWindow):
         displayWindow.blit(self.bg, (0, 0))
         
         for token in self.tokens.values():
@@ -134,30 +134,30 @@ class Grid:
         displayWindow.blit(sScoreText, (900, 373))
         displayWindow.blit(oScoreText, (900, 484))
         
-        # Assuming state_text is a list of strings
-        line_surfaces = [self.stateFont.render(line, True, (0, 0, 0)) for line in stateText]
+        # Assuming stateText is a list of strings
+        lineSurfaces = [self.stateFont.render(line, True, (0, 0, 0)) for line in stateText]
 
         # Background box properties
-        box_x, box_y = 767, 582
-        box_width, box_height = 267, 121
+        boxX, boxY = 767, 582
+        boxWidth, boxHeight = 267, 121
 
         # Calculate total height of all lines
-        total_height = sum(surf.get_height() for surf in line_surfaces)
-        start_y = box_y + (box_height - total_height) // 2
+        totalHeight = sum(surf.get_height() for surf in lineSurfaces)
+        startY = boxY + (boxHeight - totalHeight) // 2
 
         # Draw each line centered within the box
-        for surf in line_surfaces:
-            x = box_x + (box_width - surf.get_width()) // 2
-            displayWindow.blit(surf, (x, start_y))
-            start_y += surf.get_height()
+        for surf in lineSurfaces:
+            x = boxX + (boxWidth - surf.get_width()) // 2
+            displayWindow.blit(surf, (x, startY))
+            startY += surf.get_height()
     
-    def printBoard(self):
+    def print_board(self):
         # Prints the grid to the console for debugging
         print('Current Board:')
         for row in self.gridLogic:
             print(row)
             
-    def findClickableCells(self, grid, player):
+    def find_clickable_cells(self, grid, player):
         # Clickable cells are those that are empty and have at least one opponent token adjacent to it
         clickableCells = []
         
@@ -167,7 +167,7 @@ class Grid:
                 if grid[gridX][gridY] != '-':
                     continue
                 
-                validDirections = findValidDirections(gridX, gridY) # Get all directions that are within the grid
+                validDirections = find_valid_directions(gridX, gridY) # Get all directions that are within the grid
                 
                 for direction in validDirections:
                     dirX, dirY = direction
@@ -182,8 +182,8 @@ class Grid:
                     
         return clickableCells
     
-    def findSwappableTiles(self, x, y, grid, player):
-        surroundingCells = findValidDirections(x, y)
+    def find_swappable_tiles(self, x, y, grid, player):
+        surroundingCells = find_valid_directions(x, y)
         
         if len(surroundingCells) == 0:
             return []
@@ -224,19 +224,18 @@ class Grid:
                     
         if len(swappableTiles) > 0:
             swappableTiles.append((x, y))
-            print(f"Swappable Tiles: {swappableTiles}")
             
         return swappableTiles
                 
-    def findValidMoves(self, grid, player):
+    def find_valid_moves(self, grid, player):
         # Valid move is a cell that is empty and has at least one opponent token adjacent to it, and has at least one swappable tile in the direction of the move
-        clickableCells = self.findClickableCells(grid, player)
+        clickableCells = self.find_clickable_cells(grid, player)
         validMoves = []
         
         for cell in clickableCells:
             x, y = cell
             
-            swappableTiles = self.findSwappableTiles(x, y, grid, player)
+            swappableTiles = self.find_swappable_tiles(x, y, grid, player)
             
             if len(swappableTiles) > 0:
                 validMoves.append(cell)
