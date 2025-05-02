@@ -1,7 +1,7 @@
 import pygame
 from sos_token import Token
 
-# Utility functions
+# Utility Functions
 def load_image(path, size):
     img = pygame.image.load(path).convert_alpha() # To make png transparent
     img = pygame.transform.scale(img, size)
@@ -29,9 +29,142 @@ def find_valid_directions(x, y, minX=0, minY=0, maxX=7, maxY=7):
                 
     return validDirections
 
+def find_clickable_cells(grid, player):
+    # Clickable cells are those that are empty and have at least one opponent token adjacent to it
+    clickableCells = []
+    
+    for gridX, row in enumerate(grid):
+        for gridY, col in enumerate(row):
+            # Skip occupied cells
+            if grid[gridX][gridY] != '-':
+                continue
+            
+            validDirections = find_valid_directions(gridX, gridY) # Get all directions that are within the grid
+            
+            for direction in validDirections:
+                dirX, dirY = direction
+                checkedCell = grid[dirX][dirY]
+                
+                # Find an opponent token in the direction
+                if checkedCell == '-' or checkedCell == player:
+                    continue
+                else:
+                    clickableCells.append((gridX, gridY))
+                    break
+                
+    return clickableCells
+    
+def find_swappable_tiles(x, y, grid, player):
+    surroundingCells = find_valid_directions(x, y)
+    
+    if len(surroundingCells) == 0:
+        return []
+    
+    swappableTiles = []
+    opposingPlayer = 'S' if player == 'O' else 'O'
+    
+    for checkedCell in surroundingCells:
+        cellX, cellY = checkedCell
+        difX, difY = cellX - x, cellY - y
+        currentLine = [] # List of all the swappable tiles if current cell is chosen as a move
+        checkingLine = True
+        
+        while checkingLine:
+            # If an opponent token is found, continue checking in the same direction until a player token is found or an empty cell is found
+            if grid[cellX][cellY] == opposingPlayer:
+                currentLine.append((cellX, cellY))
+            elif grid[cellX][cellY] == player:
+                checkingLine = False
+                break
+            elif grid[cellX][cellY] == '-':
+                currentLine.clear()
+                checkingLine = False
+                break
+            
+            # Move to the next cell in the direction
+            cellX += difX
+            cellY += difY
+            
+            # Check if the cell is within bounds
+            if cellX < 0 or cellX > 7 or cellY < 0 or cellY > 7:
+                currentLine.clear()
+                checkingLine = False
+                break
+            
+        if len(currentLine) > 0:
+            swappableTiles.extend(currentLine)
+                
+    if len(swappableTiles) > 0:
+        swappableTiles.append((x, y))
+        
+    return swappableTiles
+                
+def find_valid_moves(grid, player):
+    # Valid move is a cell that is empty and has at least one opponent token adjacent to it, and has at least one swappable tile in the direction of the move
+    clickableCells = find_clickable_cells(grid, player)
+    validMoves = []
+    
+    for cell in clickableCells:
+        x, y = cell
+        
+        swappableTiles = find_swappable_tiles(x, y, grid, player)
+        
+        if len(swappableTiles) > 0:
+            validMoves.append(cell)
+            
+    return validMoves
+
+def calculate_score(grid):
+    # Calculate the score of each player
+    sScore = 0
+    oScore = 0
+    
+    for row in grid:
+        for cell in row:
+            if cell == 'S':
+                sScore += 1
+            elif cell == 'O':
+                oScore += 1
+        
+    return sScore, oScore
+
 def is_on_grid(x, y, minX=0, minY=0, maxX=7, maxY=7):
     # Check if the coordinates are within the grid bounds
     return minX <= x <= maxX and minY <= y <= maxY
+
+def find_patterns(grid, swappableTiles):
+        directions = [
+            (0, 1),   # horizontal right
+            (1, 0),   # vertical down
+            (1, 1),   # diagonal down-right
+            (1, -1),  # diagonal down-left
+        ]
+        patterns = []
+        seenPatterns = set()
+        
+        for cx, cy in swappableTiles:
+            for dx, dy in directions:
+                # Check 3-cell patterns in each direction of the current cell
+                for offset in [-2, -1, 0]:
+                    coordinates = [
+                        (cx + dx * offset, cy + dy * offset),
+                        (cx + dx * (offset + 1), cy + dy * (offset + 1)),
+                        (cx + dx * (offset + 2), cy + dy * (offset + 2))
+                    ]
+                    
+                    # Validate bounds
+                    if not all(is_on_grid(cdx, cdy) for cdx, cdy in coordinates):
+                        continue
+                    
+                    # Get pattern string (SOS or OSO)
+                    pattern = [grid[cdx][cdy] for cdx, cdy in coordinates]
+                    if pattern == ['S', 'O', 'S'] or pattern == ['O', 'S', 'O']:
+                        key = frozenset(coordinates)  # Used frozenset to avoid duplicates
+                        if key not in seenPatterns:
+                            seenPatterns.add(key)
+                            patterns.append(coordinates)             
+        
+        return patterns 
 
 # Handles the grid design and logic       
 class Grid:
@@ -60,9 +193,9 @@ class Grid:
         self.gridLogic = self.regen_grid(self.y, self.x)
         
         self.stateText = [f"PLAYER {self.currentPlayer}", "TURN"]
-        self.sScore, self.oScore = self.calculate_score(self.gridLogic)
+        self.sScore, self.oScore = calculate_score(self.gridLogic)
         self.sPatternScore, self.oPatternScore = 0, 0
-        self.validMoves = self.find_valid_moves(self.gridLogic, self.currentPlayer)
+        self.validMoves = find_valid_moves(self.gridLogic, self.currentPlayer)
         self.lastMove = None
         self.pattern = []
         self.bothSkipped = False
@@ -108,16 +241,16 @@ class Grid:
         
         return background
     
-    def add_token(self, grid_logic, player, y, x, is_new_placement=False):
+    def add_token(self, gridLogic, player, y, x, is_new_placement=False):
         # Adds/Updates a token object in self.tokens and updates grid_logic
-        token_image = self.oTokenImg if player == 'O' else self.sTokenImg
+        tokenImage = self.oTokenImg if player == 'O' else self.sTokenImg
 
         if (y, x) in self.tokens:
             pass # Let animation handle the visual change
         else:
-            self.tokens[(y, x)] = Token(player, y, x, self.tokenSize, token_image, self.sTokenImg, self.oTokenImg)
+            self.tokens[(y, x)] = Token(player, y, x, self.tokenSize, tokenImage, self.sTokenImg, self.oTokenImg)
 
-        grid_logic[y][x] = player
+        gridLogic[y][x] = player
 
     def regen_grid(self, rows, columns):
         # Generates empty grid for game logic
@@ -200,95 +333,10 @@ class Grid:
         print('Current Board:')
         for row in self.gridLogic:
             print(row)
-            
-    def find_clickable_cells(self, grid, player):
-        # Clickable cells are those that are empty and have at least one opponent token adjacent to it
-        clickableCells = []
-        
-        for gridX, row in enumerate(grid):
-            for gridY, col in enumerate(row):
-                # Skip occupied cells
-                if grid[gridX][gridY] != '-':
-                    continue
-                
-                validDirections = find_valid_directions(gridX, gridY) # Get all directions that are within the grid
-                
-                for direction in validDirections:
-                    dirX, dirY = direction
-                    checkedCell = grid[dirX][dirY]
-                    
-                    # Find an opponent token in the direction
-                    if checkedCell == '-' or checkedCell == player:
-                        continue
-                    else:
-                        clickableCells.append((gridX, gridY))
-                        break
-                    
-        return clickableCells
-    
-    def find_swappable_tiles(self, x, y, grid, player):
-        surroundingCells = find_valid_directions(x, y)
-        
-        if len(surroundingCells) == 0:
-            return []
-        
-        swappableTiles = []
-        opposingPlayer = 'S' if player == 'O' else 'O'
-        
-        for checkedCell in surroundingCells:
-            cellX, cellY = checkedCell
-            difX, difY = cellX - x, cellY - y
-            currentLine = [] # List of all the swappable tiles if current cell is chosen as a move
-            checkingLine = True
-            
-            while checkingLine:
-                # If an opponent token is found, continue checking in the same direction until a player token is found or an empty cell is found
-                if grid[cellX][cellY] == opposingPlayer:
-                    currentLine.append((cellX, cellY))
-                elif grid[cellX][cellY] == player:
-                    checkingLine = False
-                    break
-                elif grid[cellX][cellY] == '-':
-                    currentLine.clear()
-                    checkingLine = False
-                    break
-                
-                # Move to the next cell in the direction
-                cellX += difX
-                cellY += difY
-                
-                # Check if the cell is within bounds
-                if cellX < 0 or cellX > 7 or cellY < 0 or cellY > 7:
-                    currentLine.clear()
-                    checkingLine = False
-                    break
-                
-            if len(currentLine) > 0:
-                swappableTiles.extend(currentLine)
-                    
-        if len(swappableTiles) > 0:
-            swappableTiles.append((x, y))
-            
-        return swappableTiles
-                
-    def find_valid_moves(self, grid, player):
-        # Valid move is a cell that is empty and has at least one opponent token adjacent to it, and has at least one swappable tile in the direction of the move
-        clickableCells = self.find_clickable_cells(grid, player)
-        validMoves = []
-        
-        for cell in clickableCells:
-            x, y = cell
-            
-            swappableTiles = self.find_swappable_tiles(x, y, grid, player)
-            
-            if len(swappableTiles) > 0:
-                validMoves.append(cell)
-                
-        return validMoves
     
     def flip_tiles(self, y, x):
         # Find tiles to flip
-        swappableTilesCoords = self.find_swappable_tiles(y, x, self.gridLogic, self.currentPlayer)
+        swappableTilesCoords = find_swappable_tiles(y, x, self.gridLogic, self.currentPlayer)
 
         if not swappableTilesCoords:
              return
@@ -323,23 +371,9 @@ class Grid:
         for token in finished_animating:
             self.animating_tokens.remove(token)
     
-    def calculate_score(self, grid):
-        # Calculate the score of each player
-        sScore = 0
-        oScore = 0
-        
-        for row in grid:
-            for cell in row:
-                if cell == 'S':
-                    sScore += 1
-                elif cell == 'O':
-                    oScore += 1
-            
-        return sScore, oScore
-    
     def update_score(self, changed_tile_coords): # Renamed parameter for clarity
-        self.sScore, self.oScore = self.calculate_score(self.gridLogic)
-        currentPattern = self.find_patterns(self.gridLogic, changed_tile_coords)
+        self.sScore, self.oScore = calculate_score(self.gridLogic)
+        currentPattern = find_patterns(self.gridLogic, changed_tile_coords)
         self.pattern = currentPattern
         patternScore = len(currentPattern)
         
@@ -348,49 +382,15 @@ class Grid:
         else:
             self.oPatternScore += patternScore
     
-    def find_patterns(self, grid, swappableTiles):
-        directions = [
-            (0, 1),   # horizontal right
-            (1, 0),   # vertical down
-            (1, 1),   # diagonal down-right
-            (1, -1),  # diagonal down-left
-        ]
-        patterns = []
-        seenPatterns = set()
-        
-        for cx, cy in swappableTiles:
-            for dx, dy in directions:
-                # Check 3-cell patterns in each direction of the current cell
-                for offset in [-2, -1, 0]:
-                    coordinates = [
-                        (cx + dx * offset, cy + dy * offset),
-                        (cx + dx * (offset + 1), cy + dy * (offset + 1)),
-                        (cx + dx * (offset + 2), cy + dy * (offset + 2))
-                    ]
-                    
-                    # Validate bounds
-                    if not all(is_on_grid(cdx, cdy) for cdx, cdy in coordinates):
-                        continue
-                    
-                    # Get pattern string (SOS or OSO)
-                    pattern = [grid[cdx][cdy] for cdx, cdy in coordinates]
-                    if pattern == ['S', 'O', 'S'] or pattern == ['O', 'S', 'O']:
-                        key = frozenset(coordinates)  # Used frozenset to avoid duplicates
-                        if key not in seenPatterns:
-                            seenPatterns.add(key)
-                            patterns.append(coordinates)             
-        
-        return patterns  
-    
     def switch_player(self):
         self.currentPlayer = self.playerO if self.currentPlayer == self.playerS else self.playerS
-        self.validMoves = self.find_valid_moves(self.gridLogic, self.currentPlayer)
+        self.validMoves = find_valid_moves(self.gridLogic, self.currentPlayer)
         
         # Handle Skips
         if self.validMoves == []:
             self.stateText = [f"NO VALID MOVE", "TURN SKIPPED"]
             self.currentPlayer = self.playerO if self.currentPlayer == self.playerS else self.playerS
-            self.validMoves = self.find_valid_moves(self.gridLogic, self.currentPlayer)
+            self.validMoves = find_valid_moves(self.gridLogic, self.currentPlayer)
             
             # Both players skipped
             if self.validMoves == []:
