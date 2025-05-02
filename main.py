@@ -1,5 +1,6 @@
 import pygame
 from grid import Grid, is_on_grid
+from ai_player import ComputerPlayer
 
 # TODO:
 # HIGH PRIO: AI player logic (Fixed-Depth Heuristic Search)
@@ -21,6 +22,7 @@ class FlipSOS:
         self.columns = 8
         self.tokenSize = (72, 72)
         self.grid = Grid(self.rows, self.columns, self.tokenSize, self)
+        self.computerPlayer = ComputerPlayer('O', 4)  # Don't go over 3 for now, too slow
 
         self.running = True
         self.dt = 0
@@ -67,14 +69,22 @@ class FlipSOS:
                     else:
                         print("Game Over - Cannot make moves.")
 
-
     def update(self):
-        self.grid.update_animations(self.dt)
+        if self.grid.currentPlayer == 'O' and not self.grid.animating_tokens and self.grid.gameOver == 0:
+            bestMove = self.computerPlayer.get_best_move(self.grid.gridLogic, self.grid.sPatternScore, self.grid.oPatternScore)
+            if bestMove:
+                self.grid.lastMove = bestMove 
+                self.grid.flip_tiles(bestMove[0], bestMove[1])
+                self.grid.switch_player()
+                self.grid.check_game_over()
+            else:
+                print("BUG: No valid moves for AI player.")
 
     def draw(self):
         self.screen.fill((255, 255, 255)) # RRGGBB Format
         self.grid.draw_grid(self.screen)
         self.grid.draw_sidebar(self.screen)
+        self.grid.update_animations(self.dt)
         pygame.display.update()
 
 if __name__ == '__main__':
