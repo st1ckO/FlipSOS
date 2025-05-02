@@ -51,7 +51,7 @@ class Grid:
         self.oToken = load_image('assets/O.png', self.resizedToken)
         self.validToken = load_image('assets/Valid_Moves.png', self.validTokenSize)
         self.sidebar = load_image('assets/Sidebar.png', (360, 720))
-        self.scoreFont = pygame.font.Font('assets/arial.ttf', 50)
+        self.scoreFont = pygame.font.Font('assets/arial.ttf', 40)
         self.stateFont = pygame.font.Font('assets/arial.ttf', 28)
         
         self.bgDict = self.load_background_images()
@@ -302,7 +302,6 @@ class Grid:
         currentPattern = self.find_patterns(self.gridLogic, swappableTiles)
         self.pattern = currentPattern
         patternScore = len(currentPattern)
-        print(currentPattern)
         
         if self.currentPlayer == 'S':
             self.sPatternScore += patternScore
