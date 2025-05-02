@@ -46,14 +46,15 @@ class Grid:
         self.playerO = 'O'
         self.playerS = 'S'
         self.currentPlayer = 'S'
-        
-        self.sToken = load_image('assets/S.png', self.resizedToken)
-        self.oToken = load_image('assets/O.png', self.resizedToken)
+
+        # Load images ONCE
+        self.sTokenImg = load_image('assets/S.png', self.resizedToken)
+        self.oTokenImg = load_image('assets/O.png', self.resizedToken)
         self.validToken = load_image('assets/Valid_Moves.png', self.validTokenSize)
         self.sidebar = load_image('assets/Sidebar.png', (360, 720))
         self.scoreFont = pygame.font.Font('assets/arial.ttf', 50)
         self.stateFont = pygame.font.Font('assets/arial.ttf', 28)
-        
+
         self.bgDict = self.load_background_images()
         self.bg = self.create_background()
         self.gridLogic = self.regen_grid(self.y, self.x)
@@ -66,6 +67,9 @@ class Grid:
         self.pattern = []
         self.bothSkipped = False
         self.gameOver = 0 # 0 = Continue, 1 = S wins, 2 = O wins, 3 = Draw
+
+        # Animation tracking
+        self.animating_tokens = []
         
     def load_background_images(self):
         # Load background images for the grid 
@@ -104,12 +108,17 @@ class Grid:
         
         return background
     
-    def add_token(self, grid, player, y, x):
-        # Adds a token to the grid and updates the grid logic
-        tokenImage = self.oToken if player == 'O' else self.sToken
-        self.tokens[(y, x)] = Token(player, y, x, self.tokenSize, tokenImage, self.gameClass)
-        grid[y][x] = self.tokens[(y, x)].player
-        
+    def add_token(self, grid_logic, player, y, x, is_new_placement=False):
+        # Adds/Updates a token object in self.tokens and updates grid_logic
+        token_image = self.oTokenImg if player == 'O' else self.sTokenImg
+
+        if (y, x) in self.tokens:
+            pass # Let animation handle the visual change
+        else:
+            self.tokens[(y, x)] = Token(player, y, x, self.tokenSize, token_image, self.sTokenImg, self.oTokenImg)
+
+        grid_logic[y][x] = player
+
     def regen_grid(self, rows, columns):
         # Generates empty grid for game logic
         grid = []
@@ -118,24 +127,27 @@ class Grid:
             for x in range(columns):
                 line.append('-')
             grid.append(line)
-            
+
         # Add starting tokens
+        self.tokens.clear() # Clear existing tokens if regenerating
         self.add_token(grid, 'O', 3, 3)
         self.add_token(grid, 'S', 3, 4)
         self.add_token(grid, 'O', 4, 4)
         self.add_token(grid, 'S', 4, 3)
 
         return grid
-    
+
     def draw_grid(self, displayWindow):
         displayWindow.blit(self.bg, (0, 0))
-        
+
+        # Draw valid move markers first (underneath tokens)
+        for move in self.validMoves:
+            displayWindow.blit(self.validToken, (move[1] * self.tokenSize[0] + self.tokenSize[0] + 2, move[0] * self.tokenSize[1] + self.tokenSize[1] + 2))
+
+        # Draw all tokens (animating tokens will draw themselves correctly)
         for token in self.tokens.values():
             token.draw(displayWindow)
 
-        for move in self.validMoves:
-            displayWindow.blit(self.validToken, (move[1] * self.tokenSize[0] + self.tokenSize[0] + 2, move[0] * self.tokenSize[1] + self.tokenSize[1] + 2))
-        
         # Draw red circle on last clicked cell
         if self.lastMove:
             y, x = self.lastMove
@@ -274,14 +286,42 @@ class Grid:
                 
         return validMoves
     
-    def flip_tiles(self, x, y):
-        # Flip all the tokens in the direction of the move
-        swappableTiles = self.find_swappable_tiles(x, y, self.gridLogic, self.currentPlayer)
-        
-        for tile in swappableTiles:
-            self.add_token(self.gridLogic, self.currentPlayer, tile[0], tile[1])
-            
-        self.update_score(swappableTiles)
+    def flip_tiles(self, y, x):
+        # Find tiles to flip
+        swappableTilesCoords = self.find_swappable_tiles(y, x, self.gridLogic, self.currentPlayer)
+
+        if not swappableTilesCoords:
+             return
+
+        placed_tile_coord = (y, x)
+
+        for ty, tx in swappableTilesCoords:
+            self.gridLogic[ty][tx] = self.currentPlayer
+
+            if (ty, tx) == placed_tile_coord:
+                 self.add_token(self.gridLogic, self.currentPlayer, ty, tx)
+            else:
+                token_to_flip = self.tokens.get((ty, tx))
+                if token_to_flip:
+                    token_to_flip.start_flip_animation(self.currentPlayer)
+                    if token_to_flip not in self.animating_tokens:
+                         self.animating_tokens.append(token_to_flip)
+
+        self.update_score(swappableTilesCoords)
+
+
+    def update_animations(self, dt):
+        """Updates all active token animations."""
+        finished_animating = []
+        for token in self.animating_tokens:
+            token.update(dt)
+            if not token.is_animating:
+                # Animation just finished, remove from active list
+                finished_animating.append(token)
+
+        # Remove finished tokens from the list
+        for token in finished_animating:
+            self.animating_tokens.remove(token)
     
     def calculate_score(self, grid):
         # Calculate the score of each player
@@ -297,12 +337,11 @@ class Grid:
             
         return sScore, oScore
     
-    def update_score(self, swappableTiles):
+    def update_score(self, changed_tile_coords): # Renamed parameter for clarity
         self.sScore, self.oScore = self.calculate_score(self.gridLogic)
-        currentPattern = self.find_patterns(self.gridLogic, swappableTiles)
+        currentPattern = self.find_patterns(self.gridLogic, changed_tile_coords)
         self.pattern = currentPattern
         patternScore = len(currentPattern)
-        print(currentPattern)
         
         if self.currentPlayer == 'S':
             self.sPatternScore += patternScore
