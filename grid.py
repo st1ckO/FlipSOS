@@ -162,8 +162,8 @@ def find_patterns(grid, swappableTiles):
                         key = frozenset(coordinates)  # Used frozenset to avoid duplicates
                         if key not in seenPatterns:
                             seenPatterns.add(key)
-                            patterns.append(coordinates)             
-        
+                            patterns.append(coordinates)       
+                            
         return patterns 
 
 # Handles the grid design and logic       

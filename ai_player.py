@@ -4,9 +4,13 @@ from copy import deepcopy
 # Utility Functions
 def apply_move(x, y, grid, player):
     newGrid = deepcopy(grid)
-    newGrid[x][y] = player
+    swappableTiles = find_swappable_tiles(x, y, newGrid, player)
     
-    return newGrid, find_swappable_tiles(x, y, grid, player)
+    # Apply the move to the grid and flip the swappable tiles
+    for tile in swappableTiles:
+        newGrid[tile[0]][tile[1]] = player
+    
+    return newGrid, swappableTiles
 
 def is_terminal(grid):
     sSCore, oScore = calculate_score(grid)
@@ -24,11 +28,17 @@ def get_reward(grid, player, sPatternScore, oPatternScore):
     
     # TODO: Revise the reward depending on the values returned by the heuristic function
     if playerScore > opponentScore:
-        return 50000
+        return 100000
     elif playerScore < opponentScore:
-        return -50000
+        return -100000
     else:
         return 0
+
+# For debugging purposes, print the grid in a readable format
+def print_grid(grid):
+    for row in grid:
+        print(' '.join(row))
+    print()
     
 class ComputerPlayer:
     def __init__(self, player, maxDepth):
@@ -40,12 +50,15 @@ class ComputerPlayer:
         bestScore = float('-inf')
         bestMove = None
         validMoves = find_valid_moves(grid, self.player)
+        testGrid = deepcopy(grid)
         
         if not validMoves:
             return None
         
         for move in validMoves:
-            newGrid, flippedTokens = apply_move(move[0], move[1], grid, self.player)
+            #print("-" * 40) 
+            #print(f"Evaluating move: {move}")
+            newGrid, flippedTokens = apply_move(move[0], move[1], testGrid, self.player)
             patternScore = len(find_patterns(newGrid, flippedTokens))
             sScore, oScore = 0, 0
             
@@ -60,6 +73,7 @@ class ComputerPlayer:
                 bestMove = move
         
         print(f"Best Move: {bestMove}, Score: {bestScore}")
+        #print("-" * 20)
         return bestMove
     
     def min_score(self, grid, depth, sSCore, oScore, sExistingScore, oExistingScore):
@@ -73,10 +87,8 @@ class ComputerPlayer:
         
         if not validMoves: # Opponent's turn is skipped
             if not find_valid_moves(grid, self.player): # Both turns are skipped, game over
-                print("min_score - both turns skipped")
                 return get_reward(grid, self.opponent, sSCore + sExistingScore, oScore + oExistingScore)
             else: 
-                print("min_score - opponent turn skipped")
                 return self.max_score(grid, depth + 1, sSCore, oScore, sExistingScore, oExistingScore)
             
         minScore = float('inf')
@@ -87,6 +99,7 @@ class ComputerPlayer:
             
             if self.opponent == 'S':
                 sNewScore += patternScore
+                #print(f"{move} - {self.opponent} | sScore: {sNewScore} | oScore: {oNewScore}")
             else:
                 oNewScore += patternScore
             
@@ -106,10 +119,8 @@ class ComputerPlayer:
         
         if not validMoves: # AI's turn is skipped
             if not find_valid_moves(grid, self.opponent): # Both turns are skipped, game over
-                print("max_score - both turns skipped")
                 return get_reward(grid, self.player, sScore + sExistingScore, oScore + oExistingScore)
             else: 
-                print("max_score - AI turn skipped")
                 return self.min_score(grid, depth + 1, sScore, oScore, sExistingScore, oExistingScore)
             
         maxScore = float('-inf')
@@ -120,6 +131,7 @@ class ComputerPlayer:
             
             if self.player == 'O':
                 oNewScore += patternScore
+                #print(f"{move} - {self.player} | oScore: {oNewScore} | sScore: {sNewScore}")
             else:
                 sNewScore += patternScore
             
@@ -157,11 +169,11 @@ class ComputerPlayer:
                     value -= value_table[i][j]
                     opp_stones += 1
 
-                if cell != '.':
+                if cell != '-':
                     own_flag = opp_flag = True
                     for k in range(8):
                         x, y = i + rx[k], j + ry[k]
-                        if 0 <= x < 8 and 0 <= y < 8 and grid[x][y] == '.':
+                        if 0 <= x < 8 and 0 <= y < 8 and grid[x][y] == '-':
                             if own_flag and cell == player:
                                 own_front += 1
                                 own_flag = False
@@ -174,6 +186,9 @@ class ComputerPlayer:
                                 opp_free_front += 1
 
         piece_diff = 0 if own_stones + opp_stones == 0 else 100 * (own_stones - opp_stones) / (own_stones + opp_stones)
+        ownPatternScore = oScore if player == 'O' else sScore
+        oppPatternScore = sScore if player == 'O' else oScore
+        patternScoreDiff = 0 if ownPatternScore + oppPatternScore == 0 else 100 * (ownPatternScore - oppPatternScore) / (ownPatternScore + oppPatternScore)
         own_moves = len(find_valid_moves(grid, player))
         opp_moves = len(find_valid_moves(grid, opponent))
         mobility = 0 if own_moves + opp_moves == 0 else 100 * (own_moves - opp_moves) / (own_moves + opp_moves)
@@ -190,10 +205,10 @@ class ComputerPlayer:
 
         own_adj = opp_adj = 0
         for idx, (i, j) in enumerate(corners):
-            if grid[i][j] == '.':
+            if grid[i][j] == '-':
                 for dx in range(2):
                     for dy in range(2):
-                        x, y = i + dx, j + dy if idx in [0, 1] else i - dx, j - dy
+                        x, y = (i + dx, j + dy) if idx in [0, 1] else (i - dx, j - dy)
                         if 0 <= x < 8 and 0 <= y < 8:
                             if grid[x][y] == player:
                                 own_adj += 1
@@ -201,5 +216,5 @@ class ComputerPlayer:
                                 opp_adj += 1
         corner_adj = 12.5 * (own_adj - opp_adj)
 
-        score = 15 * piece_diff + 60 * mobility + 30 * frontier + 40 * corner_score + 30 * corner_adj + 50 * value
+        score = 15 * piece_diff + 60 * mobility + 30 * frontier + 100 * corner_score + 100 * corner_adj + 50 * value + 40 * patternScoreDiff
         return score
