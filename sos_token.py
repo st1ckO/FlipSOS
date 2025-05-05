@@ -20,6 +20,7 @@ class Token:
         self.target_player = None
         self.target_image = None
         self.scale_x = 1.0
+        self.max_animation_dt = 1 / 30
 
     def start_flip_animation(self, target_player):
         if self.player == target_player: 
@@ -33,7 +34,11 @@ class Token:
         if not self.is_animating:
             return
 
-        self.animation_progress += dt / self.animation_duration
+        # --- Use clamped dt for animation progress ---
+        effective_dt = min(dt, self.max_animation_dt)
+        self.animation_progress += effective_dt / self.animation_duration
+        # ------------------------------------------
+
         half_progress = 0.5
 
         if self.animation_progress >= 1.0:
@@ -44,12 +49,14 @@ class Token:
             self.image = self.target_image   
             self.scale_x = 1.0
         elif self.animation_progress >= half_progress:
-            self.image = self.target_image 
+
+            if self.image != self.target_image:
+                 self.image = self.target_image 
             self.scale_x = (self.animation_progress - half_progress) / half_progress
         else:
             self.scale_x = 1.0 - (self.animation_progress / half_progress)
 
-        self.scale_x = max(0.0, self.scale_x)
+        self.scale_x = max(0.0, min(1.0, self.scale_x))
 
 
     def draw(self, displayWindow):
@@ -60,7 +67,14 @@ class Token:
             if scaled_width <= 0: 
                 return 
 
-            scaled_surface = pygame.transform.scale(self.image, (scaled_width, scaled_height))
+            current_image_being_drawn = self.target_image if self.animation_progress >= 0.5 else self.image
+            if self.animation_progress >= 0.5 and self.image != self.target_image:
+                 current_image_being_drawn = self.target_image
+
+            try:
+                scaled_surface = pygame.transform.scale(current_image_being_drawn, (scaled_width, scaled_height))
+            except ValueError:
+                return # Skip drawing if scale failed
 
             offset_x = (self.original_width - scaled_width) // 2
             draw_pos_x = self.posX + offset_x
