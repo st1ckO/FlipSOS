@@ -22,7 +22,7 @@ class FlipSOS:
         self.columns = 8
         self.tokenSize = (72, 72)
         self.grid = Grid(self.rows, self.columns, self.tokenSize, self)
-        self.computerPlayer = ComputerPlayer('O', 4)  # Don't go over 3 for now, too slow
+        self.computerPlayer = ComputerPlayer('O', 4, self.grid)
 
         self.running = True
         self.dt = 0
@@ -71,7 +71,7 @@ class FlipSOS:
 
     def update(self):
         if self.grid.currentPlayer == 'O' and not self.grid.animating_tokens and self.grid.gameOver == 0:
-            bestMove = self.computerPlayer.get_best_move(self.grid.gridLogic, self.grid.sPatternScore, self.grid.oPatternScore)
+            bestMove = self.computerPlayer.get_best_move()
             if bestMove:
                 self.grid.lastMove = bestMove 
                 self.grid.flip_tiles(bestMove[0], bestMove[1])

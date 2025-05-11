@@ -41,16 +41,17 @@ def print_grid(grid):
     print()
     
 class ComputerPlayer:
-    def __init__(self, player, maxDepth):
+    def __init__(self, player, maxDepth, gridClass):
         self.player = player
         self.opponent = 'S' if player == 'O' else 'O'
         self.maxDepth = maxDepth
+        self.gridClass = gridClass
         
-    def get_best_move(self, grid, sExistingScore, oExistingScore):
+    def get_best_move(self):
         bestScore = float('-inf')
         bestMove = None
-        validMoves = find_valid_moves(grid, self.player)
-        testGrid = deepcopy(grid)
+        validMoves = find_valid_moves(self.gridClass.gridLogic, self.player)
+        testGrid = deepcopy(self.gridClass.gridLogic)
         
         if not validMoves:
             return None
@@ -67,7 +68,7 @@ class ComputerPlayer:
             else:
                 sScore += patternScore
             
-            score = self.min_score(newGrid, 1, sScore, oScore, sExistingScore, oExistingScore)
+            score = self.min_score(newGrid, 1, sScore, oScore)
             if score > bestScore:
                 bestScore = score
                 bestMove = move
@@ -76,26 +77,26 @@ class ComputerPlayer:
         #print("-" * 20)
         return bestMove
     
-    def min_score(self, grid, depth, sSCore, oScore, sExistingScore, oExistingScore):
+    def min_score(self, grid, depth, sScore, oScore):
         if is_terminal(grid):
-            return get_reward(grid, self.player, sSCore + sExistingScore, oScore + oExistingScore)
+            return get_reward(grid, self.player, sScore + self.gridClass.sPatternScore, oScore + self.gridClass.oPatternScore)
         
         if depth >= self.maxDepth:
-            return self.heuristic_evaluation(grid, self.opponent, sSCore, oScore)
+            return self.heuristic_evaluation(grid, self.player, sScore, oScore)
         
         validMoves = find_valid_moves(grid, self.opponent)
         
         if not validMoves: # Opponent's turn is skipped
             if not find_valid_moves(grid, self.player): # Both turns are skipped, game over
-                return get_reward(grid, self.opponent, sSCore + sExistingScore, oScore + oExistingScore)
+                return get_reward(grid, self.player, sScore + self.gridClass.sPatternScore, oScore + self.gridClass.oPatternScore)
             else: 
-                return self.max_score(grid, depth + 1, sSCore, oScore, sExistingScore, oExistingScore)
+                return self.max_score(grid, depth + 1, sScore, oScore)
             
         minScore = float('inf')
         for move in validMoves:
             newGrid, flippedTokens = apply_move(move[0], move[1], grid, self.opponent)
             patternScore = len(find_patterns(newGrid, flippedTokens))
-            sNewScore, oNewScore = sSCore, oScore
+            sNewScore, oNewScore = sScore, oScore
             
             if self.opponent == 'S':
                 sNewScore += patternScore
@@ -103,14 +104,14 @@ class ComputerPlayer:
             else:
                 oNewScore += patternScore
             
-            score = self.max_score(newGrid, depth + 1, sNewScore, oNewScore, sExistingScore, oExistingScore)
+            score = self.max_score(newGrid, depth + 1, sNewScore, oNewScore)
             minScore = min(minScore, score)
             
         return minScore
             
-    def max_score(self, grid, depth, sScore, oScore, sExistingScore, oExistingScore):
+    def max_score(self, grid, depth, sScore, oScore):
         if is_terminal(grid):
-            return get_reward(grid, self.player, sScore + sExistingScore, oScore + oExistingScore)
+            return get_reward(grid, self.player, sScore + self.gridClass.sPatternScore, oScore + self.gridClass.oPatternScore)
         
         if depth >= self.maxDepth:
             return self.heuristic_evaluation(grid, self.player, sScore, oScore)
@@ -119,9 +120,9 @@ class ComputerPlayer:
         
         if not validMoves: # AI's turn is skipped
             if not find_valid_moves(grid, self.opponent): # Both turns are skipped, game over
-                return get_reward(grid, self.player, sScore + sExistingScore, oScore + oExistingScore)
+                return get_reward(grid, self.player, sScore + self.gridClass.sPatternScore, oScore + self.gridClass.oPatternScore)
             else: 
-                return self.min_score(grid, depth + 1, sScore, oScore, sExistingScore, oExistingScore)
+                return self.min_score(grid, depth + 1, sScore, oScore)
             
         maxScore = float('-inf')
         for move in validMoves:
@@ -135,7 +136,7 @@ class ComputerPlayer:
             else:
                 sNewScore += patternScore
             
-            score = self.min_score(newGrid, depth + 1, sNewScore, oNewScore, sExistingScore, oExistingScore)
+            score = self.min_score(newGrid, depth + 1, sNewScore, oNewScore)
             maxScore = max(maxScore, score)
             
         return maxScore
@@ -218,3 +219,108 @@ class ComputerPlayer:
 
         score = 15 * piece_diff + 60 * mobility + 30 * frontier + 100 * corner_score + 100 * corner_adj + 50 * value + 40 * patternScoreDiff
         return score
+    
+    # Alpha-Beta Pruning Version (if allowed)
+    def get_best_move_ab(self):
+        bestScore = float('-inf')
+        bestMove = None
+        alpha = float('-inf')
+        beta = float('inf')
+
+        validMoves = find_valid_moves(self.gridClass.gridLogic, self.player)
+        testGrid = deepcopy(self.gridClass.gridLogic)
+
+        if not validMoves:
+            return None
+
+        for move in validMoves:
+            newGrid, flippedTokens = apply_move(move[0], move[1], testGrid, self.player)
+            patternScore = len(find_patterns(newGrid, flippedTokens))
+            sScore, oScore = 0, 0
+
+            if self.player == 'O':
+                oScore += patternScore
+            else:
+                sScore += patternScore
+
+            score = self.min_score_ab(newGrid, 1, sScore, oScore, alpha, beta)
+            if score > bestScore:
+                bestScore = score
+                bestMove = move
+
+            alpha = max(alpha, bestScore)
+
+        print(f"Best Move: {bestMove}, Score: {bestScore}")
+        return bestMove
+
+
+    def min_score_ab(self, grid, depth, sScore, oScore, alpha, beta):
+        if is_terminal(grid):
+            return get_reward(grid, self.player, sScore + self.gridClass.sPatternScore, oScore + self.gridClass.oPatternScore)
+
+        if depth >= self.maxDepth:
+            return self.heuristic_evaluation(grid, self.player, sScore, oScore)
+
+        validMoves = find_valid_moves(grid, self.opponent)
+
+        if not validMoves:
+            if not find_valid_moves(grid, self.player):
+                return get_reward(grid, self.player, sScore + self.gridClass.sPatternScore, oScore + self.gridClass.oPatternScore)
+            else:
+                return self.max_score_ab(grid, depth + 1, sScore, oScore, alpha, beta)
+
+        minScore = float('inf')
+        for move in validMoves:
+            newGrid, flippedTokens = apply_move(move[0], move[1], grid, self.opponent)
+            patternScore = len(find_patterns(newGrid, flippedTokens))
+            sNewScore, oNewScore = sScore, oScore
+
+            if self.opponent == 'S':
+                sNewScore += patternScore
+            else:
+                oNewScore += patternScore
+
+            score = self.max_score_ab(newGrid, depth + 1, sNewScore, oNewScore, alpha, beta)
+            minScore = min(minScore, score)
+
+            if minScore <= alpha:
+                break  # Max won't allow this move
+            beta = min(beta, minScore)
+
+        return minScore
+
+
+    def max_score_ab(self, grid, depth, sScore, oScore, alpha, beta):
+        if is_terminal(grid):
+            return get_reward(grid, self.player, sScore + self.gridClass.sPatternScore, oScore + self.gridClass.oPatternScore)
+
+        if depth >= self.maxDepth:
+            return self.heuristic_evaluation(grid, self.player, sScore, oScore)
+
+        validMoves = find_valid_moves(grid, self.player)
+
+        if not validMoves:
+            if not find_valid_moves(grid, self.opponent):
+                return get_reward(grid, self.player, sScore + self.gridClass.sPatternScore, oScore + self.gridClass.oPatternScore)
+            else:
+                return self.min_score_ab(grid, depth + 1, sScore, oScore, alpha, beta)
+
+        maxScore = float('-inf')
+        for move in validMoves:
+            newGrid, flippedTokens = apply_move(move[0], move[1], grid, self.player)
+            patternScore = len(find_patterns(newGrid, flippedTokens))
+            sNewScore, oNewScore = sScore, oScore
+
+            if self.player == 'O':
+                oNewScore += patternScore
+            else:
+                sNewScore += patternScore
+
+            score = self.min_score_ab(newGrid, depth + 1, sNewScore, oNewScore, alpha, beta)
+            maxScore = max(maxScore, score)
+
+            if maxScore >= beta:
+                break  # Min won't allow this move
+            alpha = max(alpha, maxScore)
+
+        return maxScore
