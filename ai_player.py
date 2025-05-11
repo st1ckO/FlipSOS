@@ -58,9 +58,8 @@ class ComputerPlayer:
         if not validMoves:
             return None
         
+        # Iterate through all valid moves of the AI and evaluate them
         for move in validMoves:
-            #print("-" * 40) 
-            #print(f"Evaluating move: {move}")
             newGrid, flippedTokens = apply_move(move[0], move[1], testGrid, self.player)
             patternScore = len(find_patterns(newGrid, flippedTokens))
             sScore, oScore = 0, 0
@@ -70,16 +69,18 @@ class ComputerPlayer:
             else:
                 sScore += patternScore
             
-            score = self.min_score(newGrid, 1, sScore, oScore)
+            score = self.min_score(newGrid, 1, sScore, oScore) # Check the minimum score of the AI given the opponent's best move
+            
+            # Update the best score and move if the current score is better
             if score > bestScore:
                 bestScore = score
                 bestMove = move
         
-        print(f"Best Move: {bestMove}, Score: {bestScore}")
-        #print("-" * 20)
+        print(f"Best Move: {bestMove}, Score: {bestScore}") # For debugging
         return bestMove
     
     def min_score(self, grid, depth, sScore, oScore):
+        # Check if the game is over or if the maximum depth has been reached
         if is_terminal(grid):
             return get_reward(grid, self.player, sScore + self.gridClass.sPatternScore, oScore + self.gridClass.oPatternScore)
         
@@ -90,11 +91,13 @@ class ComputerPlayer:
         
         if not validMoves: # Opponent's turn is skipped
             if not find_valid_moves(grid, self.player): # Both turns are skipped, game over
-                return get_reward(grid, self.player, sScore + self.gridClass.sPatternScore, oScore + self.gridClass.oPatternScore)
+                return get_reward(grid, self.player, sScore + self.gridClass.sPatternScore, oScore + self.gridClass.oPatternScore) # Identify the winner
             else: 
-                return self.max_score(grid, depth + 1, sScore, oScore)
+                return self.max_score(grid, depth + 1, sScore, oScore) # AI's turn
             
         minScore = float('inf')
+        
+        # Iterate through all valid moves of the opponent and evaluate them
         for move in validMoves:
             newGrid, flippedTokens = apply_move(move[0], move[1], grid, self.opponent)
             patternScore = len(find_patterns(newGrid, flippedTokens))
@@ -102,16 +105,16 @@ class ComputerPlayer:
             
             if self.opponent == 'S':
                 sNewScore += patternScore
-                #print(f"{move} - {self.opponent} | sScore: {sNewScore} | oScore: {oNewScore}")
             else:
                 oNewScore += patternScore
             
-            score = self.max_score(newGrid, depth + 1, sNewScore, oNewScore)
-            minScore = min(minScore, score)
+            score = self.max_score(newGrid, depth + 1, sNewScore, oNewScore) # Check the maximum score of the AI given the opponent's best move
+            minScore = min(minScore, score) # Update the minimum score if the current score is lower
             
         return minScore
             
     def max_score(self, grid, depth, sScore, oScore):
+        # Check if the game is over or if the maximum depth has been reached
         if is_terminal(grid):
             return get_reward(grid, self.player, sScore + self.gridClass.sPatternScore, oScore + self.gridClass.oPatternScore)
         
@@ -122,11 +125,13 @@ class ComputerPlayer:
         
         if not validMoves: # AI's turn is skipped
             if not find_valid_moves(grid, self.opponent): # Both turns are skipped, game over
-                return get_reward(grid, self.player, sScore + self.gridClass.sPatternScore, oScore + self.gridClass.oPatternScore)
+                return get_reward(grid, self.player, sScore + self.gridClass.sPatternScore, oScore + self.gridClass.oPatternScore) # Identify the winner
             else: 
                 return self.min_score(grid, depth + 1, sScore, oScore)
             
         maxScore = float('-inf')
+        
+        # Iterate through all valid moves of the AI and evaluate them
         for move in validMoves:
             newGrid, flippedTokens = apply_move(move[0], move[1], grid, self.player)
             patternScore = len(find_patterns(newGrid, flippedTokens))
@@ -134,12 +139,11 @@ class ComputerPlayer:
             
             if self.player == 'O':
                 oNewScore += patternScore
-                #print(f"{move} - {self.player} | oScore: {oNewScore} | sScore: {sNewScore}")
             else:
                 sNewScore += patternScore
             
-            score = self.min_score(newGrid, depth + 1, sNewScore, oNewScore)
-            maxScore = max(maxScore, score)
+            score = self.min_score(newGrid, depth + 1, sNewScore, oNewScore) # Check the minimum score of the AI given the opponent's best move
+            maxScore = max(maxScore, score) # Update the maximum score if the current score is higher
             
         return maxScore
             
@@ -253,7 +257,12 @@ class ComputerPlayer:
         
         return score
     
-    
+
+
+
+
+
+######################################################_ALPHA-BETA PRUNING_#######################################################
     # Alpha-Beta Pruning Version (if allowed)
     def get_best_move_ab(self):
         bestScore = float('-inf')

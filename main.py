@@ -3,11 +3,12 @@ from grid import Grid, is_on_grid
 from ai_player import ComputerPlayer
 
 # TODO:
-# HIGH PRIO: AI player logic (Fixed-Depth Heuristic Search)
-# Fix state text (sequence, timer, etc.)
-# Fix game over logic (stop updating state text, add play again button, etc.)
-# Clean up code (add comments, remove complicated methods in infinite loops if possible, arrange methods logically, etc.)
-# LOW PRIO: token selection (S or O), AI difficulty, animations, sounds, etc.
+# Add play again button (after game over)
+# Fix state text (timer (like show "invalid move" for only 2secs), etc.)
+# Add delay between skipping turns (AI and player)
+# Hide valid moves when it's AI's turn or make the opacity of the valid moves less visible
+# UI improvements (font style and size, colors, etc.)
+# LOW PRIO: token selection (S or O), AI difficulty, sounds, etc.
 
 # Handles the Main game loop and grid logic
 class FlipSOS:
@@ -81,7 +82,7 @@ class FlipSOS:
                 print("BUG: No valid moves for AI player.")
 
     def draw(self):
-        self.screen.fill((255, 255, 255)) # RRGGBB Format
+        self.screen.fill((255, 255, 255))
         self.grid.draw_grid(self.screen)
         self.grid.draw_sidebar(self.screen)
         self.grid.update_animations(self.dt)
