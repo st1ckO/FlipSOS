@@ -43,8 +43,8 @@ class FlipSOS:
                 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 # For debugging, print the board
-                if event.button == 3:
-                    self.grid.print_board()
+                # if event.button == 3:
+                    # self.grid.print_board()
 
                 # Place a token based on player input
                 if event.button == 1:
@@ -71,7 +71,7 @@ class FlipSOS:
 
     def update(self):
         if self.grid.currentPlayer == 'O' and not self.grid.animating_tokens and self.grid.gameOver == 0:
-            bestMove = self.computerPlayer.get_best_move()
+            bestMove = self.computerPlayer.get_best_move() # Switch to get_best_move_ab() for alpha-beta pruning
             if bestMove:
                 self.grid.lastMove = bestMove 
                 self.grid.flip_tiles(bestMove[0], bestMove[1])

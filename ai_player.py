@@ -29,7 +29,6 @@ def get_reward(grid, player, sPatternScore, oPatternScore):
         playerScore = sPatternScore + sScore
         opponentScore = oPatternScore + oScore
     
-    # TODO: Revise the reward depending on the values returned by the heuristic function
     if playerScore > opponentScore:
         return 100000
     elif playerScore < opponentScore:
@@ -145,83 +144,115 @@ class ComputerPlayer:
         return maxScore
             
     def heuristic_evaluation(self, grid, player, sScore, oScore):
-        value_table = [
-            [100, -10, 11, 6, 6, 11, -10, 100],
-            [-10, -20, 1, 2, 2, 1, -20, -10],
-            [10, 1, 5, 4, 4, 5, 1, 10],
-            [6, 2, 4, 2, 2, 4, 2, 6],
-            [6, 2, 4, 2, 2, 4, 2, 6],
-            [10, 1, 5, 4, 4, 5, 1, 10],
-            [-10, -20, 1, 2, 2, 1, -20, -10],
-            [100, -10, 11, 6, 6, 11, -10, 100],
+        opponent = 'S' if player == 'O' else 'O'
+        
+        # Static Positional Weights
+        valueTable = [
+            [100, -10,  11,   6,   6,  11, -10, 100],
+            [-10, -20,   1,   2,   2,   1, -20, -10],
+            [ 10,   1,   5,   4,   4,   5,   1,  10],
+            [  6,   2,   4,   2,   2,   4,   2,   6],
+            [  6,   2,   4,   2,   2,   4,   2,   6],
+            [ 10,   1,   5,   4,   4,   5,   1,  10],
+            [-10, -20,   1,   2,   2,   1, -20, -10],
+            [100, -10,  11,   6,   6,  11, -10, 100],
         ]
         
-        opponent = 'S' if player == 'O' else 'O'
-        rx = [-1, -1, 0, 1, 1, 1, 0, -1]
-        ry = [0, 1, 1, 1, 0, -1, -1, -1]
+        # Directions (W, NW, N, NE, E, SE, S, SW)
+        rx = [-1, -1,  0,  1,  1,  1,  0, -1]
+        ry = [ 0,  1,  1,  1,  0, -1, -1, -1]
 
-        value = own_stones = opp_stones = 0
-        own_front = opp_front = own_free_front = opp_free_front = 0
-
-        for i in range(8):
-            for j in range(8):
-                cell = grid[i][j]
+        staticValue = 0 
+        ownTokens = oppTokens = 0 # Number of tokens on the board
+        ownFront = oppFront = 0 # Frontier Tokens (tokens adjacent to empty spaces). They are vulnerable to being flipped.
+        
+        # Static Board Evaluation (-456 to +456)
+        for row in range(8):
+            for col in range(8):
+                cell = grid[row][col]
+                
                 if cell == player:
-                    value += value_table[i][j]
-                    own_stones += 1
+                    staticValue += valueTable[row][col]
+                    ownTokens += 1
                 elif cell == opponent:
-                    value -= value_table[i][j]
-                    opp_stones += 1
+                    staticValue -= valueTable[row][col]
+                    oppTokens += 1
 
-                if cell != '-':
-                    own_flag = opp_flag = True
+        # Calculate the number of frontier tokens for stability evaluation
+                # If cell is not empty, check the adjacent cells
+                if cell != '-': 
+                    ownFlag = oppFlag = True # Flags to ensure we only count a token once as a frontier token
+                    
+                    # Loop through all 8 directions
                     for k in range(8):
-                        x, y = i + rx[k], j + ry[k]
+                        x, y = row + rx[k], col + ry[k]
                         if 0 <= x < 8 and 0 <= y < 8 and grid[x][y] == '-':
-                            if own_flag and cell == player:
-                                own_front += 1
-                                own_flag = False
-                            if opp_flag and cell == opponent:
-                                opp_front += 1
-                                opp_flag = False
-                            if cell == player:
-                                own_free_front += 1
-                            elif cell == opponent:
-                                opp_free_front += 1
+                            if ownFlag and cell == player:
+                                ownFront += 1
+                                ownFlag = False
+                            if oppFlag and cell == opponent:
+                                oppFront += 1
+                                oppFlag = False
 
-        piece_diff = 0 if own_stones + opp_stones == 0 else 100 * (own_stones - opp_stones) / (own_stones + opp_stones)
+        # Token Difference Evaluation (-100 to +100)
+        tokenDiff = 0 if ownTokens + oppTokens == 0 else 100 * (ownTokens - oppTokens) / (ownTokens + oppTokens)
+        
+        # Frontier Tokens Evaluation (-100 to +100)
+        frontier = 0 if ownFront + oppFront == 0 else 100 * (oppFront - ownFront) / (ownFront + oppFront)
+        
+        # Mobility Evaluation (-100 to +100)
+        ownValidMoves = len(find_valid_moves(grid, player))
+        oppValidMoves = len(find_valid_moves(grid, opponent))
+        mobility = 0 if ownValidMoves + oppValidMoves == 0 else 100 * (ownValidMoves - oppValidMoves) / (ownValidMoves + oppValidMoves)
+
+        # Corners Captured Evaluation (-100 to +100)
+        corners = [(0, 0), (0, 7), (7, 0), (7, 7)]
+        ownCorner = oppCorner = 0
+        for x, y in corners:
+            if grid[x][y] == player:
+                ownCorner += 1
+            elif grid[x][y] == opponent:
+                oppCorner += 1
+        cornerScore = 25 * (ownCorner - oppCorner)
+        
+        # Corner Closeness Evaluation (-150 to +150): The squares adjacent to the empty corner squares are rated negatively.
+        adjacentCorners = [
+            [(0, 1), (1, 0), (1, 1)], # Adjacent to top-left corner
+            [(0, 6), (1, 6), (1, 7)], # Adjacent to top-right corner
+            [(6, 0), (6, 1), (7, 1)], # Adjacent to bottom-left corner
+            [(6, 6), (6, 7), (7, 6)], # Adjacent to bottom-right corner
+        ]
+        ownAdj = oppAdj = 0
+        
+        # Check each adjacent square for each corner
+        for cornerNum, (i, j) in enumerate(corners):
+            if grid[i][j] == '-':  # If the corner is empty
+                for x, y in adjacentCorners[cornerNum]:
+                    if 0 <= x < 8 and 0 <= y < 8:
+                        if grid[x][y] == player:
+                            ownAdj += 1
+                        elif grid[x][y] == opponent:
+                            oppAdj += 1
+                            
+        cornerAdj = 12.5 * (oppAdj - ownAdj) 
+        
+        # Pattern Evaluation (-100 to +100)
         ownPatternScore = oScore if player == 'O' else sScore
         oppPatternScore = sScore if player == 'O' else oScore
         patternScoreDiff = 0 if ownPatternScore + oppPatternScore == 0 else 100 * (ownPatternScore - oppPatternScore) / (ownPatternScore + oppPatternScore)
-        own_moves = len(find_valid_moves(grid, player))
-        opp_moves = len(find_valid_moves(grid, opponent))
-        mobility = 0 if own_moves + opp_moves == 0 else 100 * (own_moves - opp_moves) / (own_moves + opp_moves)
-        frontier = 0 if own_front + opp_front == 0 else 100 * (opp_front - own_front) / (own_front + opp_front)
-
-        corners = [(0, 0), (0, 7), (7, 0), (7, 7)]
-        own_corner = opp_corner = 0
-        for i, j in corners:
-            if grid[i][j] == player:
-                own_corner += 1
-            elif grid[i][j] == opponent:
-                opp_corner += 1
-        corner_score = 25 * (own_corner - opp_corner)
-
-        own_adj = opp_adj = 0
-        for idx, (i, j) in enumerate(corners):
-            if grid[i][j] == '-':
-                for dx in range(2):
-                    for dy in range(2):
-                        x, y = (i + dx, j + dy) if idx in [0, 1] else (i - dx, j - dy)
-                        if 0 <= x < 8 and 0 <= y < 8:
-                            if grid[x][y] == player:
-                                own_adj += 1
-                            elif grid[x][y] == opponent:
-                                opp_adj += 1
-        corner_adj = 12.5 * (own_adj - opp_adj)
-
-        score = 15 * piece_diff + 60 * mobility + 30 * frontier + 100 * corner_score + 100 * corner_adj + 50 * value + 40 * patternScoreDiff
+        
+        # Score Range: -52300 to +52300
+        # staticValue: -456 to +456 => -22800 to +22800
+        # tokenDiff: -100 to +100 => -1500 to +1500
+        # frontier: -100 to +100 => -3000 to +3000
+        # mobility: -100 to +100 => -6000 to +6000
+        # cornerScore: -100 to +100 => -4000 to +4000
+        # cornerAdj: -150 to +150 => -4500 to +4500
+        # patternScoreDiff: -100 to +100 => -6000 to +6000
+        score = (50 * staticValue) + (15 * tokenDiff) + (30 * frontier) + (60 * mobility) + (40 * cornerScore) + (30 * cornerAdj) + (60 * patternScoreDiff)
+        
         return score
+    
     
     # Alpha-Beta Pruning Version (if allowed)
     def get_best_move_ab(self):
