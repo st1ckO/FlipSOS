@@ -2,8 +2,11 @@ from grid import *
 from copy import deepcopy
 
 # Utility Functions
+def copy_grid(grid):
+    return [row[:] for row in grid]
+
 def apply_move(x, y, grid, player):
-    newGrid = deepcopy(grid)
+    newGrid = copy_grid(grid)
     swappableTiles = find_swappable_tiles(x, y, newGrid, player)
     
     # Apply the move to the grid and flip the swappable tiles
@@ -51,7 +54,7 @@ class ComputerPlayer:
         bestScore = float('-inf')
         bestMove = None
         validMoves = find_valid_moves(self.gridClass.gridLogic, self.player)
-        testGrid = deepcopy(self.gridClass.gridLogic)
+        testGrid = copy_grid(self.gridClass.gridLogic)
         
         if not validMoves:
             return None
@@ -228,7 +231,7 @@ class ComputerPlayer:
         beta = float('inf')
 
         validMoves = find_valid_moves(self.gridClass.gridLogic, self.player)
-        testGrid = deepcopy(self.gridClass.gridLogic)
+        testGrid = copy_grid(self.gridClass.gridLogic)
 
         if not validMoves:
             return None
