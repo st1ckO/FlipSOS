@@ -6,7 +6,7 @@ from ai_player import ComputerPlayer
 # Add play again button (after game over)
 # Fix state text (timer (like show "invalid move" for only 2secs), etc.)
 # Add delay between skipping turns (AI and player)
-# Hide valid moves when it's AI's turn or make the opacity of the valid moves less visible
+# Hide valid moves when it's AI's turn or make the opacity of the valid moves less visible (DONE - Hid AI valid moves)
 # UI improvements (font style and size, colors, etc.)
 # LOW PRIO: token selection (S or O), AI difficulty, sounds, etc.
 
