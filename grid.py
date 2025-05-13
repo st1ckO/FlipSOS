@@ -272,11 +272,12 @@ class Grid:
 
     def draw_grid(self, displayWindow):
         displayWindow.blit(self.bg, (0, 0))
-
-        # Draw valid move markers first (underneath tokens)
-        for move in self.validMoves:
-            displayWindow.blit(self.validToken, (move[1] * self.tokenSize[0] + self.tokenSize[0] + 2, move[0] * self.tokenSize[1] + self.tokenSize[1] + 2))
-
+        
+        # Only draw valid move markers if it's the human player's ('S') turn
+        if self.currentPlayer == self.playerS: # Or just use 'S' if it's always the human
+            # Draw valid move markers first (underneath tokens)
+            for move in self.validMoves:
+                displayWindow.blit(self.validToken, (move[1] * self.tokenSize[0] + self.tokenSize[0] + 2, move[0] * self.tokenSize[1] + self.tokenSize[1] + 2))
         # Draw all tokens (animating tokens will draw themselves correctly)
         for token in self.tokens.values():
             token.draw(displayWindow)
