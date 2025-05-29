@@ -168,8 +168,9 @@ def find_patterns(grid, swappableTiles):
 
 # Handles the grid design and logic       
 class Grid:
-    def __init__(self, rows, columns, tokenSize, gameClass): 
+    def __init__(self, rows, columns, tokenSize, playerToken, gameClass): 
         self.gameClass = gameClass
+        self.playerToken = playerToken
         self.y = rows
         self.x = columns
         self.tokenSize = tokenSize
@@ -274,7 +275,7 @@ class Grid:
         displayWindow.blit(self.bg, (0, 0))
         
         # Only draw valid move markers if it's the human player's ('S') turn
-        if self.currentPlayer == self.playerS: # Or just use 'S' if it's always the human
+        if self.currentPlayer == self.playerToken: # Or just use 'S' if it's always the human
             # Draw valid move markers first (underneath tokens)
             for move in self.validMoves:
                 displayWindow.blit(self.validToken, (move[1] * self.tokenSize[0] + self.tokenSize[0] + 2, move[0] * self.tokenSize[1] + self.tokenSize[1] + 2))

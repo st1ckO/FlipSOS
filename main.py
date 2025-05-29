@@ -23,8 +23,10 @@ class FlipSOS:
         self.rows = 8
         self.columns = 8
         self.tokenSize = (72, 72)
-        self.grid = Grid(self.rows, self.columns, self.tokenSize, self)
-        self.computerPlayer = ComputerPlayer('O', 4, self.grid)
+        self.computerToken = 'O'
+        self.playerToken = 'S'
+        self.grid = Grid(self.rows, self.columns, self.tokenSize, self.playerToken, self)
+        self.computerPlayer = ComputerPlayer(self.computerToken, 4, self.grid)
 
         # Play Again button
         button_width, button_height = 250, 60
@@ -48,7 +50,7 @@ class FlipSOS:
 
     def reset_game(self):
         self.grid = Grid(self.rows, self.columns, self.tokenSize, self)
-        self.computerPlayer = ComputerPlayer('O', 4, self.grid)
+        self.computerPlayer = ComputerPlayer(self.computerToken, 4, self.grid)
 
     def draw_game_over(self):
         # Draw semi-transparent overlay
@@ -115,7 +117,7 @@ class FlipSOS:
                         self.grid.check_game_over() 
 
     def update(self):
-        if self.grid.gameOver == 0 and self.grid.currentPlayer == 'O' and not self.grid.animating_tokens:
+        if self.grid.gameOver == 0 and self.grid.currentPlayer == self.computerToken and not self.grid.animating_tokens:
             bestMove = self.computerPlayer.get_best_move()
             if bestMove:
                 self.grid.lastMove = bestMove 
