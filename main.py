@@ -26,7 +26,7 @@ class FlipSOS:
         self.is_music_on = True
         try:
             pygame.mixer.music.load('assets/background_music.mp3')
-            pygame.mixer.music.set_volume(0.4)
+            pygame.mixer.music.set_volume(0.2)
             pygame.mixer.music.play(loops=-1)
             
             icon_size = (48, 48)
